@@ -1,100 +1,151 @@
-# vinext-starter
+# GoodLife.AI
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+<p align="center">
+  <img src="docs/images/goodlife-ai-cover.png" alt="GoodLife.AI cover" width="900" />
+</p>
 
-## Prerequisites
+<p align="center">
+  <strong>A private, local-first coach for building a life that fits.</strong><br />
+  GoodLife.AI turns a few honest answers into small steps I can actually try.
+</p>
 
-- Node.js `>=22.13.0`
+<p align="center">
+  <a href="https://goodlife-daily-guide.w-chenyin.chatgpt.site">Try the live app</a>
+  ·
+  <a href="https://github.com/mutms7/GoodLife.AI">View the repository</a>
+  ·
+  <a href="https://github.com/mutms7/PersonalWebsite">See it on my portfolio</a>
+</p>
 
-## Quick Start
+## Why I built it
 
-```bash
+I kept running into the same problem in conversations about self-improvement. People usually don't need another giant list of things to fix. They need help deciding what to do first, and they need the first step to be small enough that they can do it on a normal Tuesday.
+
+I built GoodLife.AI around that idea. It starts by asking what kind of life someone wants, what their current season feels like, and where things are stuck. Then it suggests three practical starting points. The goal isn't to turn life into a dashboard. It's to give someone a little more direction and a way to return tomorrow.
+
+The financial side comes from a lesson I took from The Wealthy Barber: pay yourself first, automate saving, live below your means, and give long-term investing a place in the plan. GoodLife.AI turns that into general education about emergency savings, expensive debt, and diversified, low-cost ETFs. It doesn't promise returns or tell anyone what to buy.
+
+## A quick tour
+
+<p align="center">
+  <img src="docs/images/onboarding.png" alt="GoodLife.AI onboarding questionnaire" width="800" />
+</p>
+
+A new user describes their ideal good day, chooses up to three priorities, and answers a few questions about energy, money, home, sleep, social time, outdoor time, cooking, and meditation.
+
+<p align="center">
+  <img src="docs/images/daily-plan.png" alt="GoodLife.AI daily starting plan" width="800" />
+</p>
+
+The app uses the full questionnaire to rank three starting actions. For example, someone with no emergency savings, an inconsistent sleep schedule, and a desire for more energy might see a small money-buffer step, a consistent wake-time step, and a daylight walk.
+
+<p align="center">
+  <img src="docs/images/local-ai-coach.png" alt="GoodLife.AI local AI coach" width="800" />
+</p>
+
+The coach is optional. The app works without the language model, and the user can ask for more open-ended help after choosing to download it.
+
+## How the AI part works
+
+GoodLife.AI uses a hybrid design. The questionnaire and the first-week plan are deterministic TypeScript logic. That makes the most visible recommendations predictable and easy to test.
+
+The optional conversational layer uses a pretrained Qwen2.5-0.5B-Instruct-q4f16_1-MLC model through WebLLM. It has roughly 500 million parameters. The model is quantized, which keeps the download and memory requirements lower than a full-size model. The first download is about 1 GB and needs a browser with WebGPU.
+
+The model runs on the user's device inside the browser. There is no GoodLife.AI inference server, no API key, and no per-message cloud request. I didn't train or fine-tune this model. I integrated it and built the product logic around it.
+
+Before a chat message is handled, a small domain classifier checks whether it is about crisis support, money, health, housing, habits, relationships, meaning, or a general question.
+
+- General questions, habits, relationships, and meaning can use the local SLM.
+- Money, health, and housing stay on controlled deterministic guidance.
+- Crisis language receives a crisis-support response instead of model-generated coaching.
+- If the model can't load or generation fails, the deterministic coach answers instead.
+
+The SLM prompt currently receives the user's north-star vision for lower-risk conversation. The full questionnaire stays with the deterministic planner. That boundary is intentional, and it's also an honest description of what the app does today.
+
+## The ideas behind the product
+
+GoodLife.AI borrows ideas, not slogans.
+
+Atomic Habits shaped the seven-day plan. Actions are made smaller, tied to cues that already exist, supported by the environment, and tracked without treating a missed day as a personal failure. The app uses a simple “never miss twice” reminder.
+
+The Wealthy Barber shaped the money prompts. Pay yourself first, automate a sustainable amount, keep an emergency buffer, deal with high-interest debt, and invest for the long term only after considering risk, time horizon, account rules, fees, and local tax context.
+
+Other cards in the library are informed by How to Win Friends and Influence People, The Happiness Trap, Why We Sleep, and Four Thousand Weeks. I also link to public guidance from the CDC, WHO, Investor.gov, and the Consumer Financial Protection Bureau. These are prompts to test, not rules to obey.
+
+## Architecture
+
+~~~mermaid
+flowchart TD
+    A[Onboarding questionnaire] --> B[Local profile in browser storage]
+    B --> C[Deterministic planner]
+    C --> D[Three starting actions]
+    D --> E[Seven-day habit plan]
+    B --> F[Coach message]
+    F --> G[Domain classifier]
+    G -->|General habits relationships meaning| H[Optional Qwen 0.5B SLM]
+    G -->|Money health housing| I[Controlled advice]
+    G -->|Crisis language| J[Crisis support response]
+    H --> K[Local chat response]
+    H -->|Unavailable or error| I
+    I --> K
+    J --> K
+    K --> L[Local chat history and progress]
+~~~
+
+## Privacy and limits
+
+The profile, completions, streaks, and chat history are stored in the browser's local storage. They aren't sent to a GoodLife.AI server. The optional model runs locally after its files are downloaded and cached by the browser.
+
+This also means the data is tied to that browser and device. Clearing site data can remove it, so the app includes a JSON export. The model needs a compatible WebGPU device and a fairly large first download. Small local models can be less capable than cloud models, especially with complex or nuanced questions.
+
+GoodLife.AI is a reflection and education tool. It isn't medical, mental-health, legal, or financial advice. Investment returns aren't guaranteed. Renting and owning both have trade-offs, and the app doesn't assume one is right for everyone. For urgent safety concerns, contact local emergency services or a crisis service in your area.
+
+## Tech stack
+
+- React and TypeScript
+- Vinext and Vite
+- WebLLM with Qwen2.5-0.5B-Instruct
+- WebGPU for in-browser inference
+- Browser local storage for the local-first data model
+- Service worker and web manifest for PWA installation
+- Node's built-in test runner, ESLint, and TypeScript checks
+
+## Run it locally
+
+I use Node.js >=22.13.0.
+
+~~~bash
+git clone https://github.com/mutms7/GoodLife.AI.git
+cd GoodLife.AI
 npm install
 npm run dev
+~~~
+
+Then open the local URL printed by Vinext. The questionnaire and deterministic coach work right away. To try the SLM, open the Coach screen in a WebGPU-compatible browser and choose “Enable local AI.” The model download happens once per browser profile and can take a while.
+
+To make a production build:
+
+~~~bash
 npm run build
-```
+npm start
+~~~
 
-This starter does not use `wrangler.jsonc`.
+## Tests and checks
 
-## Included Shape
+~~~bash
+npm test
+npm run lint
+npm run build
+~~~
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+The tests cover server-rendered first-run HTML, the questionnaire shell, advice-domain routing, high-risk deterministic paths, and the main advice functions.
 
-## Workspace Auth Headers
+## Install it as an app
 
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
+GoodLife.AI is a Progressive Web App. On a supported browser, use the install prompt in the app or the browser's “Add to Home Screen” or “Install” command. The service worker caches the application shell so it opens like a standalone app after the first visit. The local model still needs its initial download before it can answer.
 
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
+## Resume and interview summary
 
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
+I built GoodLife.AI, a local-first AI life coach with React and TypeScript. It converts a user questionnaire into a deterministic three-action plan and a seven-day habit sequence, then adds optional on-device Qwen 0.5B chat through WebLLM and WebGPU. I designed domain-aware routing so money, health, housing, and crisis messages stay on controlled responses, with a deterministic fallback when the SLM is unavailable. The app is installable as a PWA, stores personal data locally, and runs without an API key.
 
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
-```
-
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+The part I'd talk about in an interview is the boundary between the model and the product logic. I didn't claim that a small model could safely handle every kind of life advice. I used it where open-ended conversation helps, and kept high-risk guidance predictable and reviewable.

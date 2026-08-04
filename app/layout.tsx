@@ -21,13 +21,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const image = new URL("/og.png", base).toString();
   return {
     metadataBase: base,
-    title: "GoodLife — small steps toward a life that fits",
+    title: "GoodLife.AI | small steps toward a life that fits",
     description: "A private, local-first life guide for your next good step.",
     icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
     manifest: "/manifest.webmanifest",
     themeColor: "#285547",
-    openGraph: { title: "GoodLife — small steps toward a life that fits", description: "A private, local-first life guide for your next good step.", type: "website", images: [{ url: image, width: 1200, height: 630, alt: "GoodLife — small steps toward a life that fits" }] },
-    twitter: { card: "summary_large_image", title: "GoodLife — small steps toward a life that fits", description: "A private, local-first life guide for your next good step.", images: [image] },
+    openGraph: { title: "GoodLife.AI | small steps toward a life that fits", description: "A private, local-first life guide for your next good step.", type: "website", images: [{ url: image, width: 1200, height: 630, alt: "GoodLife.AI | small steps toward a life that fits" }] },
+    twitter: { card: "summary_large_image", title: "GoodLife.AI | small steps toward a life that fits", description: "A private, local-first life guide for your next good step.", images: [image] },
   };
 }
 

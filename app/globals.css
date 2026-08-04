@@ -9,6 +9,7 @@ button { cursor:pointer; }
 button:disabled { cursor:not-allowed; opacity:.45; }
 .brand { display:flex; align-items:center; gap:10px; color:var(--deep); font-weight:800; font-size:22px; letter-spacing:-.06em; }
 .brand > span:last-child > span { color:#86a78f; }
+.brand > span:last-child > small { color:#86a78f; font-size:.55em; letter-spacing:-.02em; vertical-align:top; }
 .brand-mark { display:grid; place-items:center; width:29px; height:29px; border-radius:9px; background:var(--deep); color:#f5f7ed; font-size:17px; letter-spacing:0; }
 .eyebrow { display:flex; justify-content:space-between; gap:12px; color:#779083; font-size:10px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; }
 .eyebrow.light { color:#cfe0d2; }

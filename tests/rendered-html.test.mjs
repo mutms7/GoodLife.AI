@@ -13,12 +13,12 @@ async function render() {
   );
 }
 
-test("server-renders the GoodLife first-run experience", async () => {
+test("server-renders the GoodLife.AI first-run experience", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
-  assert.match(html, /<title>GoodLife — small steps toward a life that fits<\/title>/i);
+  assert.match(html, /<title>GoodLife\.AI \| small steps toward a life that fits<\/title>/i);
   assert.match(html, /What should we call you/);
   assert.match(html, /stored on this device/);
   assert.match(html, /manifest\.webmanifest/);
