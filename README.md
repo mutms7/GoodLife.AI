@@ -14,7 +14,7 @@
   ·
   <a href="https://github.com/mutms7/GoodLife.AI">View the repository</a>
   ·
-  <a href="https://github.com/mutms7/PersonalWebsite">See it on my portfolio</a>
+  <a href="https://william-chenyin.vercel.app">See it on my portfolio</a>
 </p>
 
 ## Why I built it
