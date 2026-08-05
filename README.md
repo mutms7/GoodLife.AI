@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://goodlife-daily-guide.w-chenyin.chatgpt.site">Try the live app</a>
+  <a href="https://goodlifeai.vercel.app">Try the live app</a>
   ·
   <a href="https://github.com/mutms7/GoodLife.AI">View the repository</a>
   ·

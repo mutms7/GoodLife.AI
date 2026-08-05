@@ -57,9 +57,9 @@ export function getAdviceStarts(profile: Profile): Start[] {
     if (priority === "money") {
       add({
         id: "pay-yourself-first",
-        title: "Make saving the first bill",
-        why: "A small automatic transfer builds breathing room without relying on willpower.",
-        action: "Set an automatic payday transfer, even if it starts at $10.",
+        title: "Set aside a little on payday",
+        why: "An automatic transfer gives you some breathing room without asking you to remember every month.",
+        action: "Set a payday transfer you can keep (even $10 is a start).",
         area: "money",
         effort: "10 minutes",
       });
@@ -67,9 +67,9 @@ export function getAdviceStarts(profile: Profile): Start[] {
     if (priority === "energy") {
       add({
         id: "sleep-anchor",
-        title: "Choose one sleep anchor",
-        why: "A consistent wake time gives your body a dependable cue before changing everything else.",
-        action: "Pick a wake time you can keep within 30 minutes for seven days.",
+        title: "Pick one sleep anchor",
+        why: "A wake time you can count on gives your body a useful cue before you change anything bigger.",
+        action: "Choose a wake time you can keep within 30 minutes for the next seven days.",
         area: "energy",
         effort: "1 minute",
       });
@@ -77,9 +77,9 @@ export function getAdviceStarts(profile: Profile): Start[] {
     if (priority === "relationships") {
       add({
         id: "connection-invite",
-        title: "Send one warm invitation",
-        why: "Specific, low-pressure invitations make connection easier to act on.",
-        action: "Text one person: ‘Want to take a 20-minute walk this week?’",
+        title: "Send one easy invitation",
+        why: "A specific, low-pressure invitation gives someone a clear way to say yes.",
+        action: "Text someone: 'Want to take a 20-minute walk this week?'",
         area: "connection",
         effort: "3 minutes",
       });
@@ -87,9 +87,9 @@ export function getAdviceStarts(profile: Profile): Start[] {
     if (priority === "meaning") {
       add({
         id: "meaning-block",
-        title: "Protect a tiny meaning block",
-        why: "A repeatable pocket for what matters turns values into a lived pattern.",
-        action: "Reserve 15 minutes for a project, craft, faith, or service you value.",
+        title: "Keep a small block for what matters",
+        why: "A repeatable pocket of time lets your values show up in an ordinary week.",
+        action: "Set aside 15 minutes for a project, craft, faith, or service you care about.",
         area: "meaning",
         effort: "15 minutes",
       });
@@ -97,9 +97,9 @@ export function getAdviceStarts(profile: Profile): Start[] {
     if (priority === "home") {
       add({
         id: "home-inventory",
-        title: "Name your home trade-offs",
-        why: "Clarity about flexibility, stability, and total costs beats pressure to buy or rent.",
-        action: "Write your top three housing needs and one non-negotiable monthly cost.",
+        title: "Write down your home trade-offs",
+        why: "Knowing what you need from a home is more helpful than feeling pushed to buy or rent.",
+        action: "List your top three housing needs and one monthly cost you cannot bend on.",
         area: "home",
         effort: "10 minutes",
       });
@@ -107,9 +107,9 @@ export function getAdviceStarts(profile: Profile): Start[] {
     if (priority === "confidence") {
       add({
         id: "confidence-proof",
-        title: "Collect one piece of proof",
-        why: "Noticing a past follow-through is a practical way to grow self-trust.",
-        action: "Write down one hard thing you handled and the trait it shows.",
+        title: "Keep one piece of evidence",
+        why: "Remembering something you handled well gives self-trust a real place to stand.",
+        action: "Write down one hard thing you handled and what it says about you.",
         area: "meaning",
         effort: "5 minutes",
       });
@@ -119,9 +119,9 @@ export function getAdviceStarts(profile: Profile): Start[] {
   if (profile.debt === "high-interest") {
     add({
       id: "debt-clarity",
-      title: "Make high-interest debt visible",
-      why: "A clear balance, rate, and minimum payment turns an invisible drain into a plan.",
-      action: "List each balance and rate; keep a starter buffer before extra payments.",
+      title: "Put high-interest debt on one page",
+      why: "A balance, rate, and minimum payment are easier to work with when they are visible.",
+      action: "List each balance and rate, and keep a small buffer before making extra payments.",
       area: "money",
       effort: "15 minutes",
     });
@@ -129,9 +129,9 @@ export function getAdviceStarts(profile: Profile): Start[] {
   if (profile.emergency !== "three-months") {
     add({
       id: "buffer",
-      title: "Start a calm-money buffer",
-      why: "A small accessible emergency fund helps surprises stay surprises, not emergencies.",
-      action: "Choose a starter target (for example, $500) and automate a weekly amount.",
+      title: "Start a small emergency buffer",
+      why: "Accessible savings can keep a surprise from turning into a crisis.",
+      action: "Pick a starter target (say, $500) and automate a weekly amount.",
       area: "money",
       effort: "10 minutes",
     });
@@ -139,9 +139,9 @@ export function getAdviceStarts(profile: Profile): Start[] {
   if (profile.sleep === "inconsistent" || profile.energy === "drained") {
     add({
       id: "evening-cue",
-      title: "Create a softer landing",
-      why: "Reducing friction before bed makes restorative sleep more likely.",
-      action: "Put your phone on charge outside reach and dim one light 30 minutes before bed.",
+      title: "Make bedtime a softer landing",
+      why: "A little less friction before bed makes it easier to give sleep a fair chance.",
+      action: "Charge your phone out of reach and dim one light 30 minutes before bed.",
       area: "energy",
       effort: "2 minutes",
     });
@@ -149,8 +149,8 @@ export function getAdviceStarts(profile: Profile): Start[] {
   if (profile.outdoor === "rarely") {
     add({
       id: "outside-loop",
-      title: "Take a daylight loop",
-      why: "A short outdoor cue supports movement, mood, and an easier transition into the day.",
+      title: "Take a short daylight loop",
+      why: "A few minutes outside can give your morning a gentle transition into movement.",
       action: "Step outside for five minutes after your first drink of water.",
       area: "energy",
       effort: "5 minutes",
@@ -159,8 +159,8 @@ export function getAdviceStarts(profile: Profile): Start[] {
   while (starts.length < 3) {
     add({
       id: `default-${starts.length}`,
-      title: "Keep one promise small",
-      why: "Tiny, repeatable actions are easier to make part of who you are.",
+      title: "Make one promise small",
+      why: "A repeatable action is easier to live with than a plan that asks for a total reset.",
       action: "Choose one two-minute action and attach it to something you already do.",
       area: "meaning",
       effort: "2 minutes",
@@ -173,13 +173,13 @@ export function getFirstWeekPlan(profile: Profile): WeekDay[] {
   const starts = getAdviceStarts(profile);
   const primary = starts[0];
   return [
-    { day: "Today", focus: "Make it obvious", action: primary.action },
-    { day: "Tomorrow", focus: "Make it easy", action: `Shrink the step: ${primary.title.toLowerCase()} for just two minutes.` },
-    { day: "Day 3", focus: "Stack the cue", action: `After a habit you already have, try your ${primary.title.toLowerCase()}.` },
-    { day: "Day 4", focus: "Shape the room", action: "Move one helpful object into your path and one distraction out of it." },
-    { day: "Day 5", focus: "Notice the win", action: "Mark the action complete and write one sentence about how it felt." },
-    { day: "Day 6", focus: "Share the plan", action: "Tell a supportive person what you are practicing this week." },
-    { day: "Day 7", focus: "Never miss twice", action: "Review what worked, then choose the smallest repeat for next week." },
+    { day: "Today", focus: "Make the first step visible", action: primary.action },
+    { day: "Tomorrow", focus: "Make it easier", action: `Shrink it: try ${primary.title.toLowerCase()} for two minutes.` },
+    { day: "Day 3", focus: "Use a cue you already have", action: `After a habit you already keep, try ${primary.title.toLowerCase()}.` },
+    { day: "Day 4", focus: "Set up the room", action: "Put one helpful thing in your path and one distraction out of it." },
+    { day: "Day 5", focus: "Notice what happened", action: "Mark the action complete and write one sentence about how it felt." },
+    { day: "Day 6", focus: "Tell someone", action: "Share what you are practicing with a supportive person." },
+    { day: "Day 7", focus: "Start again quickly", action: "Review what helped, then choose the smallest repeat for next week." },
   ];
 }
 
@@ -203,38 +203,47 @@ export function classifyMessage(message: string): AdviceDomain {
 
 export function coachReply(message: string, profile: Profile): string {
   const text = message.trim().toLowerCase();
-  if (!text) return "Tell me what feels most important today—money, energy, connection, meaning, or home.";
+  if (!text) return "What feels most useful to talk through today: money, energy, connection, meaning, or home?";
   if (classifyMessage(message) === "crisis") {
-    return "I’m really glad you said something. If you might hurt yourself or are in immediate danger, call your local emergency number now or go to the nearest emergency department. In Canada or the U.S., call or text 988 for immediate, confidential crisis support. You deserve a person with you—please tell someone you trust and stay with them while you get help.";
+    return "I'm glad you told me. If you may hurt yourself or you're in immediate danger, call your local emergency number now or go to the nearest emergency department. In Canada or the U.S., call or text 988 for immediate, confidential crisis support. Please tell someone you trust and stay with them while you get help. You deserve a person beside you right now.";
   }
   if (hasAny(text, ["money", "budget", "invest", "saving", "debt", "etf", "retire"])) {
-    const debtLine = profile.debt === "high-interest" ? "Keep minimum payments current and prioritize a payoff plan for high-interest debt before taking market risk." : "Once a starter buffer is in place, automate a comfortable amount toward your goals.";
-    return `A calm money order of operations: cover essentials, live below your means where you can, and build an accessible emergency buffer. ${debtLine} For long-term money, pay yourself first with an automatic contribution to a low-cost, diversified broad-market ETF or equivalent fund. Use tax-advantaged accounts available in your jurisdiction, check fees and taxes, and match risk to your time horizon. Markets can fall; there are no guarantees. Start with one transfer you can keep. (General education, not personalized financial advice.)`;
+    const debtLine = profile.debt === "high-interest"
+      ? "Keep minimum payments current, then make a payoff plan for high-interest debt before taking on market risk."
+      : "Once you have a starter buffer, automate an amount that feels comfortable for your goals.";
+    return `A sensible order is to cover essentials, spend less than you bring in where you can, and build accessible emergency savings. ${debtLine} For long-term goals, you might use an automatic contribution to a low-cost, diversified broad-market ETF or equivalent fund. Check the account rules, fees, taxes, and your time horizon, and choose a level of risk you can live with. Markets can fall, so there are no guarantees. Start with one transfer you can keep. (This is general education, not personal financial advice.)`;
   }
   if (hasAny(text, ["rent", "buy", "house", "housing", "mortgage", "home"])) {
-    return "Renting can be an excellent choice when flexibility, lower commitment, or a changing life matter. Owning can offer control and potential stability, but include interest, taxes, insurance, maintenance, and opportunity cost—not just the mortgage. Compare your likely five-year total cost and the life you want, without assuming one is always more enjoyable.";
+    return "Renting can be a good fit when flexibility, lower commitment, or a changing life matter. Owning can bring more control and stability, but the full cost includes interest, taxes, insurance, maintenance, and opportunity cost alongside the mortgage. Compare the likely five-year cost with the life you want. Neither choice is automatically better.";
   }
   if (hasAny(text, ["sleep", "tired", "energy", "rest"])) {
-    return "Try one sleep anchor: a wake time you can keep most days, plus a 30-minute softer landing at night. Put the phone out of reach, dim a light, and get daylight early. If persistent fatigue, snoring, or mood changes worry you, a clinician can help; this is general education, not diagnosis.";
+    return "Try one sleep anchor: a wake time you can keep most days, plus a 30-minute softer landing at night. Put your phone out of reach, dim a light, and get some daylight early. If fatigue, snoring, or mood changes persist, a clinician can help. This is general education, not a diagnosis.";
   }
   if (hasAny(text, ["outside", "outdoors", "nature", "walk", "hike", "daylight"])) {
-    return "Make outside time a cue, not a project: step out for five minutes after your first drink or between two tasks. Let the pace be easy. A little daylight and movement can support mood, sleep, and energy; any amount is a useful start.";
+    return "Make outside time a cue, not a project. Step out for five minutes after your first drink or between two tasks, and let the pace be easy. A little daylight and movement can support mood, sleep, and energy; any amount is a useful start.";
   }
   if (hasAny(text, ["meditat", "mindful", "breath", "calm down"])) {
-    return "Try a two-minute arrival: feel both feet, notice one sound, and make the exhale a little longer than the inhale. You do not have to empty your mind; returning gently is the practice.";
+    return "Try a two-minute arrival: feel both feet, notice one sound, and let the exhale run a little longer than the inhale. You don't need to empty your mind; returning gently is the practice.";
   }
   if (hasAny(text, ["cook", "cooking", "meal", "recipe", "food"])) {
-    return "Choose one reliable meal for this week, keep the ingredients visible, and make the first step tiny (wash greens, start rice, or open the recipe). Repetition lowers decision load; nourishment does not need to be elaborate.";
+    return "Pick one reliable meal for this week and keep the ingredients easy to see. Make the first step tiny (wash the greens, start the rice, or open the recipe). Repetition cuts down decisions, and food doesn't need to be elaborate to help.";
   }
   if (hasAny(text, ["habit", "routine", "motivation", "procrastinat"])) {
-    return "Use an identity-sized habit: ‘I’m a person who takes the next tiny step.’ Make it obvious with a cue, make it easy (two minutes), stack it after something you already do, and track the attempt. Design the environment so the good choice is nearby. If you miss, restart tomorrow—never miss twice.";
+    return "Try an identity-sized habit: 'I'm a person who takes the next tiny step.' Give it a cue, make it two minutes, and put it after something you already do. Keep the useful option nearby. If you miss, begin again tomorrow. One missed day doesn't have to become two.";
   }
   if (hasAny(text, ["friend", "lonely", "social", "relationship", "people"])) {
-    return "Connection grows through specific, low-pressure repetitions. Send one honest invitation, ask one curious follow-up, and put a recurring walk or call on the calendar. Aim for consistency over performing; a small welcoming moment counts.";
+    return "Connection tends to grow through specific, low-pressure repetitions. Send one honest invitation, ask a curious follow-up, and put a recurring walk or call on the calendar if that feels right. Consistency matters more than performing, and a small welcoming moment counts.";
   }
   if (hasAny(text, ["meaning", "purpose", "stuck", "happy", "anxious", "stress"])) {
-    return "Notice the feeling without making it a verdict, then choose a values-aligned two-minute action. Meaning often appears after showing up: make something, help someone, move outside, or give full attention to one person. If distress is persistent or impairing, a qualified professional can support you.";
+    return "Notice the feeling without turning it into a verdict, then choose a two-minute action that lines up with what matters to you. Meaning can show up after you begin: make something, help someone, step outside, or give one person your full attention. If distress persists or gets in the way of daily life, a qualified professional can support you.";
   }
-  const vision = profile.vision ? ` You described a good life as “${profile.vision}.”` : "";
-  return `You do not have to redesign your life today. Your current highest-leverage start is “${getAdviceStarts(profile)[0].title}.” What would make that action feel 20% easier?${vision}`;
+  const vision = profile.vision ? ` You described a good life as "${profile.vision}."` : "";
+  return `You don't have to redesign your life today. Your next useful start is "${getAdviceStarts(profile)[0].title}." What would make that feel 20% easier?${vision}`;
+}
+
+export function normalizeCoachText(text: string): string {
+  return text
+    .split(String.fromCodePoint(0x2014))
+    .map((part) => part.trim())
+    .join(", ");
 }

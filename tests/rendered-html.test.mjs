@@ -18,9 +18,10 @@ test("server-renders the GoodLife.AI first-run experience", async () => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
-  assert.match(html, /<title>GoodLife\.AI \| small steps toward a life that fits<\/title>/i);
-  assert.match(html, /What should we call you/);
+  assert.match(html, /<title>GoodLife\.AI \| decide what to try next<\/title>/i);
+  assert.match(html, /What should I call you/);
   assert.match(html, /stored on this device/);
+  assert.match(html, /Nothing leaves this device/);
   assert.match(html, /manifest\.webmanifest/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton|codex-preview/i);
 });

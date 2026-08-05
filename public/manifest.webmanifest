@@ -1,7 +1,7 @@
 {
   "name": "GoodLife.AI",
   "short_name": "GoodLife.AI",
-  "description": "A private, local-first life guide for your next good step.",
+  "description": "A private, local-first guide for turning a good intention into one practical action.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
