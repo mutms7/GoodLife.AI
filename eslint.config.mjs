@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Build output and the design handoff, which is reference, not app source.
+    "dist/**",
+    ".vinext/**",
+    ".vercel/**",
+    "GoodLife.AI Redesign/**",
   ]),
 ]);
 

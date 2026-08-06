@@ -31,19 +31,19 @@ The financial side comes from a lesson I took from The Wealthy Barber: pay yours
   <img src="docs/images/onboarding.png" alt="GoodLife.AI onboarding questionnaire" width="800" />
 </p>
 
-A new user describes their ideal good day, chooses up to three priorities, and answers a few questions about energy, money, home, sleep, social time, outdoor time, cooking, and meditation.
+First run is a three-step conversation rather than a form. You describe an ordinary good day, pick up to three things that matter right now, and say how honest-to-goodness fine or rough four areas are. Three is a hard cap, because everything can't be first.
 
 <p align="center">
   <img src="docs/images/daily-plan.png" alt="GoodLife.AI daily starting plan" width="800" />
 </p>
 
-The app uses the full questionnaire to rank three starting actions. For example, someone with no emergency savings, an inconsistent sleep schedule, and a desire for more energy might see a small money-buffer step, a consistent wake-time step, and a daylight walk.
+The coach thread is the home screen, and the day's plan arrives inside it as a message you check off. The app ranks three starting actions from those answers: rough areas first, then what you said matters. Someone with rough sleep, rough money, and energy on their list gets a wake-time anchor, a payday transfer, and a daylight walk. You can argue with any of it in the same thread.
 
 <p align="center">
   <img src="docs/images/local-ai-coach.png" alt="GoodLife.AI local AI coach" width="800" />
 </p>
 
-The coach is optional. The app works without the language model, and the user can ask for more open-ended help after choosing to download it.
+The model is optional. The app works without it, you just get the fixed guidance instead of open conversation. Either way, every coach reply carries a note saying where the answer came from, and that note is a designed part of the interface rather than debug output.
 
 ## How the AI part works
 
@@ -60,7 +60,9 @@ Before a chat message is handled, a small domain classifier checks whether it is
 - Crisis language receives a crisis-support response instead of model-generated coaching.
 - If the model can't load or generation fails, the deterministic coach answers instead.
 
-The SLM prompt currently receives the user's north-star vision for lower-risk conversation. The full questionnaire stays with the deterministic planner. That boundary is intentional, and it's also an honest description of what the app does today.
+The SLM prompt currently receives the user's description of a good day for lower-risk conversation. The rest of the answers stay with the deterministic planner. That boundary is intentional, and it's also an honest description of what the app does today.
+
+Replies stream token by token, and if the model is off, unsupported or fails mid-generation, the deterministic coach answers and the note says exactly that.
 
 ## The ideas behind the product
 
@@ -104,6 +106,7 @@ GoodLife.AI is a reflection and education tool. It isn't medical, mental-health,
 
 - React and TypeScript
 - Vinext and Vite
+- The Organic design system, self-hosted Caprasimo and Figtree
 - WebLLM with Qwen2.5-0.5B-Instruct
 - WebGPU for in-browser inference
 - Browser local storage for the local-first data model
@@ -121,7 +124,7 @@ npm install
 npm run dev
 ~~~
 
-Then open the local URL printed by Vinext. The questionnaire and deterministic coach work right away. To try the SLM, open the Coach screen in a WebGPU-compatible browser and choose “Enable local AI.” The model download happens once per browser profile and can take a while.
+Then open the local URL printed by Vinext. `/` is the marketing page, with a coach demo you can talk to before committing to anything, and `/app` is the product. First run and the deterministic coach work right away. To try the SLM, open Your data in a WebGPU-compatible browser and choose “Download the model.” The download happens once per browser profile and can take a while.
 
 To make a production build:
 
@@ -138,7 +141,7 @@ npm run lint
 npm run build
 ~~~
 
-The tests cover server-rendered first-run HTML, the questionnaire shell, advice-domain routing, high-risk deterministic paths, and the main advice functions.
+The tests cover the server-rendered marketing page, the removal of the old dashboard, advice-domain routing, the routing notes, high-risk deterministic paths, and how the day's three get ranked.
 
 ## Install it as an app
 

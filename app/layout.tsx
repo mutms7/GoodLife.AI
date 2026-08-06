@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Caprasimo, Figtree } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+// Self-hosted so the installed shell still draws its own type offline.
+const caprasimo = Caprasimo({ variable: "--font-caprasimo", subsets: ["latin"], weight: "400", display: "swap" });
+const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const TITLE = "GoodLife.AI | a coach for the life you're actually living";
+const DESCRIPTION = "Answer a few honest questions and get three small steps for today. It runs in your browser, with no account and nothing sent to a server.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -21,28 +18,21 @@ export async function generateMetadata(): Promise<Metadata> {
   const image = new URL("/og.png", base).toString();
   return {
     metadataBase: base,
-    title: "GoodLife.AI | decide what to try next",
-    description: "A private, local-first guide for turning a good intention into one practical action.",
+    title: TITLE,
+    description: DESCRIPTION,
     icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
     manifest: "/manifest.webmanifest",
-    themeColor: "#285547",
-    openGraph: { title: "GoodLife.AI | decide what to try next", description: "A private, local-first guide for turning a good intention into one practical action.", type: "website", images: [{ url: image, width: 1200, height: 630, alt: "GoodLife.AI | decide what to try next" }] },
-    twitter: { card: "summary_large_image", title: "GoodLife.AI | decide what to try next", description: "A private, local-first guide for turning a good intention into one practical action.", images: [image] },
+    themeColor: "#f5ead8",
+    openGraph: { title: TITLE, description: DESCRIPTION, type: "website", images: [{ url: image, width: 1200, height: 630, alt: TITLE }] },
+    twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [image] },
   };
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+    // The variables go on <html> so :root can compose --font-heading from them.
+    <html lang="en" className={`${caprasimo.variable} ${figtree.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }
