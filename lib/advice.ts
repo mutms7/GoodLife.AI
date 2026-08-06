@@ -1,185 +1,157 @@
 export type Priority =
-  | "energy"
-  | "money"
-  | "relationships"
-  | "meaning"
-  | "home"
-  | "confidence";
+  | "Energy"
+  | "Money"
+  | "Sleep"
+  | "Home"
+  | "Time outside"
+  | "Cooking"
+  | "People"
+  | "Meaning";
+
+export const PRIORITIES: Priority[] = ["Energy", "Money", "Sleep", "Home", "Time outside", "Cooking", "People", "Meaning"];
+
+export type CheckLevel = "Fine" | "Shaky" | "Rough";
+export const CHECK_LEVELS: CheckLevel[] = ["Fine", "Shaky", "Rough"];
+
+export type CheckKey = "energy" | "money" | "sleep" | "social";
+export const CHECK_ROWS: { key: CheckKey; label: string }[] = [
+  { key: "energy", label: "Energy through the day" },
+  { key: "money", label: "Money, month to month" },
+  { key: "sleep", label: "Sleep" },
+  { key: "social", label: "Time with people" },
+];
 
 export type Profile = {
-  name: string;
-  vision?: string;
+  goodDay: string;
   priorities: Priority[];
-  energy: "drained" | "steady" | "energized";
-  time: "scraps" | "some" | "room";
-  moneyFeel: "stretched" | "okay" | "growing";
-  debt: "none" | "some" | "high-interest";
-  emergency: "none" | "some" | "three-months";
-  housing: "renting" | "owning" | "exploring";
-  sleep: "inconsistent" | "okay" | "restful";
-  social: "rarely" | "weekly" | "often";
-  outdoor: "rarely" | "weekly" | "often";
-  cooking: "rarely" | "sometimes" | "often";
-  meditation: "curious" | "sometimes" | "regular";
+  checks: Record<CheckKey, CheckLevel>;
 };
 
-export type Start = {
-  id: string;
-  title: string;
-  why: string;
-  action: string;
-  area: "money" | "energy" | "connection" | "meaning" | "home";
-  effort: string;
+/** `short` is the one-line version the phone layout uses. */
+export type Action = { id: string; kicker: string; title: string; body: string; short: string };
+
+export type WeekStep = { day: string; action: string };
+
+export const emptyProfile: Profile = {
+  goodDay: "",
+  priorities: [],
+  checks: { energy: "Shaky", money: "Shaky", sleep: "Shaky", social: "Shaky" },
 };
 
-export type WeekDay = { day: string; focus: string; action: string };
-
-const priorityLabels: Record<Priority, string> = {
-  energy: "Energy",
-  money: "Money",
-  relationships: "Relationships",
-  meaning: "Meaning",
-  home: "Home",
-  confidence: "Confidence",
+const ACTIONS: Record<string, Action> = {
+  "sleep-anchor": {
+    id: "sleep-anchor",
+    kicker: "Energy · 1 min",
+    title: "Pick one sleep anchor",
+    body: "A wake time you can count on gives your body a cue before you change anything bigger.",
+    short: "One wake time you can keep.",
+  },
+  "payday-transfer": {
+    id: "payday-transfer",
+    kicker: "Money · 10 min",
+    title: "Set aside a little on payday",
+    body: "Even $10 counts. The point is that it happens without you having to remember.",
+    short: "Even $10 counts. Ten minutes.",
+  },
+  "daylight-loop": {
+    id: "daylight-loop",
+    kicker: "Energy · 15 min",
+    title: "Get outside before noon",
+    body: "Daylight early does more for tonight than anything you'll do at 11pm.",
+    short: "Fifteen minutes of daylight.",
+  },
+  "softer-landing": {
+    id: "softer-landing",
+    kicker: "Sleep · 2 min",
+    title: "Make bedtime a softer landing",
+    body: "Charge your phone out of reach and dim one light half an hour before bed. Less friction beats more willpower.",
+    short: "Phone out of reach tonight.",
+  },
+  "one-invitation": {
+    id: "one-invitation",
+    kicker: "People · 3 min",
+    title: "Send one easy invitation",
+    body: "A walk on Thursday is easier to say yes to than catching up soon. Give the person a real time and a small ask.",
+    short: "One invitation, with a day in it.",
+  },
+  "home-tradeoffs": {
+    id: "home-tradeoffs",
+    kicker: "Home · 10 min",
+    title: "Write down your home trade-offs",
+    body: "Three things you need from a place, and one monthly cost you can't bend on. It's a much easier decision once it's on paper.",
+    short: "Three needs, one hard limit.",
+  },
+  "repeatable-meal": {
+    id: "repeatable-meal",
+    kicker: "Cooking · 20 min",
+    title: "Pick one meal you can repeat",
+    body: "Cook the same thing twice this week and keep the ingredients where you can see them. Repetition takes the deciding out of it.",
+    short: "One meal, cooked twice.",
+  },
+  "meaning-block": {
+    id: "meaning-block",
+    kicker: "Meaning · 15 min",
+    title: "Keep a small block for what matters",
+    body: "Fifteen minutes for the project, the craft or the person you keep meaning to get to. Put it somewhere real, like a calendar.",
+    short: "Fifteen minutes, on the calendar.",
+  },
+  "two-minute-start": {
+    id: "two-minute-start",
+    kicker: "Habits · 2 min",
+    title: "Make one promise small",
+    body: "Pick the two-minute version of the thing and attach it to something you already do. Small enough to survive a bad day.",
+    short: "Two minutes, after something you already do.",
+  },
 };
 
-export function labelForPriority(priority: Priority) {
-  return priorityLabels[priority];
-}
+const PRIORITY_ACTION: Record<Priority, string> = {
+  Energy: "daylight-loop",
+  Money: "payday-transfer",
+  Sleep: "sleep-anchor",
+  Home: "home-tradeoffs",
+  "Time outside": "daylight-loop",
+  Cooking: "repeatable-meal",
+  People: "one-invitation",
+  Meaning: "meaning-block",
+};
 
-export function getAdviceStarts(profile: Profile): Start[] {
-  const starts: Start[] = [];
-  const add = (start: Start) => {
-    if (starts.length < 3 && !starts.some((item) => item.id === start.id)) starts.push(start);
+/** Where a struggling check sends us first. Order matters: it decides the
+ *  order of the day's three. */
+const CHECK_ACTION: [CheckKey, string][] = [
+  ["sleep", "sleep-anchor"],
+  ["money", "payday-transfer"],
+  ["energy", "daylight-loop"],
+  ["social", "one-invitation"],
+];
+
+const FILLERS = ["two-minute-start", "daylight-loop", "payday-transfer", "softer-landing"];
+
+/** The day's three, ranked by plain logic so the visible recommendations stay
+ *  predictable and testable. Rough answers come first, then what the person
+ *  said matters, then the shaky ones. */
+export function getDailyActions(profile: Profile): Action[] {
+  const picked: Action[] = [];
+  const add = (id: string) => {
+    if (picked.length < 3 && !picked.some((action) => action.id === id)) picked.push(ACTIONS[id]);
   };
-
-  for (const priority of profile.priorities) {
-    if (priority === "money") {
-      add({
-        id: "pay-yourself-first",
-        title: "Set aside a little on payday",
-        why: "An automatic transfer gives you some breathing room without asking you to remember every month.",
-        action: "Set a payday transfer you can keep (even $10 is a start).",
-        area: "money",
-        effort: "10 minutes",
-      });
-    }
-    if (priority === "energy") {
-      add({
-        id: "sleep-anchor",
-        title: "Pick one sleep anchor",
-        why: "A wake time you can count on gives your body a useful cue before you change anything bigger.",
-        action: "Choose a wake time you can keep within 30 minutes for the next seven days.",
-        area: "energy",
-        effort: "1 minute",
-      });
-    }
-    if (priority === "relationships") {
-      add({
-        id: "connection-invite",
-        title: "Send one easy invitation",
-        why: "A specific, low-pressure invitation gives someone a clear way to say yes.",
-        action: "Text someone: 'Want to take a 20-minute walk this week?'",
-        area: "connection",
-        effort: "3 minutes",
-      });
-    }
-    if (priority === "meaning") {
-      add({
-        id: "meaning-block",
-        title: "Keep a small block for what matters",
-        why: "A repeatable pocket of time lets your values show up in an ordinary week.",
-        action: "Set aside 15 minutes for a project, craft, faith, or service you care about.",
-        area: "meaning",
-        effort: "15 minutes",
-      });
-    }
-    if (priority === "home") {
-      add({
-        id: "home-inventory",
-        title: "Write down your home trade-offs",
-        why: "Knowing what you need from a home is more helpful than feeling pushed to buy or rent.",
-        action: "List your top three housing needs and one monthly cost you cannot bend on.",
-        area: "home",
-        effort: "10 minutes",
-      });
-    }
-    if (priority === "confidence") {
-      add({
-        id: "confidence-proof",
-        title: "Keep one piece of evidence",
-        why: "Remembering something you handled well gives self-trust a real place to stand.",
-        action: "Write down one hard thing you handled and what it says about you.",
-        area: "meaning",
-        effort: "5 minutes",
-      });
-    }
-  }
-
-  if (profile.debt === "high-interest") {
-    add({
-      id: "debt-clarity",
-      title: "Put high-interest debt on one page",
-      why: "A balance, rate, and minimum payment are easier to work with when they are visible.",
-      action: "List each balance and rate, and keep a small buffer before making extra payments.",
-      area: "money",
-      effort: "15 minutes",
-    });
-  }
-  if (profile.emergency !== "three-months") {
-    add({
-      id: "buffer",
-      title: "Start a small emergency buffer",
-      why: "Accessible savings can keep a surprise from turning into a crisis.",
-      action: "Pick a starter target (say, $500) and automate a weekly amount.",
-      area: "money",
-      effort: "10 minutes",
-    });
-  }
-  if (profile.sleep === "inconsistent" || profile.energy === "drained") {
-    add({
-      id: "evening-cue",
-      title: "Make bedtime a softer landing",
-      why: "A little less friction before bed makes it easier to give sleep a fair chance.",
-      action: "Charge your phone out of reach and dim one light 30 minutes before bed.",
-      area: "energy",
-      effort: "2 minutes",
-    });
-  }
-  if (profile.outdoor === "rarely") {
-    add({
-      id: "outside-loop",
-      title: "Take a short daylight loop",
-      why: "A few minutes outside can give your morning a gentle transition into movement.",
-      action: "Step outside for five minutes after your first drink of water.",
-      area: "energy",
-      effort: "5 minutes",
-    });
-  }
-  while (starts.length < 3) {
-    add({
-      id: `default-${starts.length}`,
-      title: "Make one promise small",
-      why: "A repeatable action is easier to live with than a plan that asks for a total reset.",
-      action: "Choose one two-minute action and attach it to something you already do.",
-      area: "meaning",
-      effort: "2 minutes",
-    });
-  }
-  return starts;
+  for (const [key, id] of CHECK_ACTION) if (profile.checks[key] === "Rough") add(id);
+  for (const priority of profile.priorities) add(PRIORITY_ACTION[priority]);
+  for (const [key, id] of CHECK_ACTION) if (profile.checks[key] === "Shaky") add(id);
+  for (const id of FILLERS) add(id);
+  return picked;
 }
 
-export function getFirstWeekPlan(profile: Profile): WeekDay[] {
-  const starts = getAdviceStarts(profile);
-  const primary = starts[0];
+export function getFirstWeekPlan(profile: Profile): WeekStep[] {
+  const primary = getDailyActions(profile)[0];
+  const lowered = primary.title.toLowerCase();
   return [
-    { day: "Today", focus: "Make the first step visible", action: primary.action },
-    { day: "Tomorrow", focus: "Make it easier", action: `Shrink it: try ${primary.title.toLowerCase()} for two minutes.` },
-    { day: "Day 3", focus: "Use a cue you already have", action: `After a habit you already keep, try ${primary.title.toLowerCase()}.` },
-    { day: "Day 4", focus: "Set up the room", action: "Put one helpful thing in your path and one distraction out of it." },
-    { day: "Day 5", focus: "Notice what happened", action: "Mark the action complete and write one sentence about how it felt." },
-    { day: "Day 6", focus: "Tell someone", action: "Share what you are practicing with a supportive person." },
-    { day: "Day 7", focus: "Start again quickly", action: "Review what helped, then choose the smallest repeat for next week." },
+    { day: "Today", action: primary.body },
+    { day: "Tomorrow", action: `Do the two-minute version of ${lowered} and count it.` },
+    { day: "Day 3", action: `Attach ${lowered} to something you already do, so you don't have to remember it.` },
+    { day: "Day 4", action: "Put one helpful thing in your path and one distraction out of it." },
+    { day: "Day 5", action: "Check it off, then write one sentence about how it actually went." },
+    { day: "Day 6", action: "Tell one person what you're practising. Saying it out loud makes it harder to drop." },
+    { day: "Day 7", action: "Keep what worked, drop what didn't, and pick the smallest repeat for next week." },
   ];
 }
 
@@ -192,53 +164,86 @@ export type AdviceDomain = "crisis" | "money" | "health" | "housing" | "habits" 
 export function classifyMessage(message: string): AdviceDomain {
   const text = message.trim().toLowerCase();
   if (hasAny(text, ["suicide", "kill myself", "self harm", "self-harm", "hurt myself", "overdose", "overdosed", "end my life", "don't want to live", "i want to die", "wish i were dead", "no reason to live", "can't go on", "cannot go on"])) return "crisis";
-  if (hasAny(text, ["money", "budget", "invest", "saving", "debt", "etf", "retire", "tax", "fee"])) return "money";
+  if (hasAny(text, ["money", "budget", "invest", "saving", "savings", "debt", "etf", "retire", "tax", "fee", "payday", "broke"])) return "money";
   if (hasAny(text, ["rent", "buy", "house", "housing", "mortgage", "home"])) return "housing";
-  if (hasAny(text, ["sleep", "tired", "energy", "rest", "doctor", "symptom", "exercise", "health", "outside", "outdoors", "nature", "walk", "hike", "daylight"])) return "health";
-  if (hasAny(text, ["habit", "routine", "motivation", "procrastinat", "cook", "cooking", "meal", "recipe", "food"])) return "habits";
+  if (hasAny(text, ["sleep", "tired", "energy", "rest", "doctor", "symptom", "exercise", "health", "outside", "outdoors", "nature", "walk", "hike", "daylight", "bedtime"])) return "health";
+  if (hasAny(text, ["habit", "routine", "motivation", "procrastinat", "cook", "cooking", "meal", "recipe", "food", "skip", "skipped", "missed", "behind", "quit", "too much", "overwhelm"])) return "habits";
   if (hasAny(text, ["friend", "lonely", "social", "relationship", "people"])) return "relationships";
   if (hasAny(text, ["meaning", "purpose", "stuck", "happy", "anxious", "stress", "meditat", "mindful", "breath", "calm down"])) return "meaning";
   return "general";
 }
 
+/** Money, health and housing never reach the model, and crisis language never
+ *  gets near it. Everything else can, when the model is loaded. */
+export function isModelSafe(domain: AdviceDomain) {
+  return domain === "general" || domain === "habits" || domain === "relationships" || domain === "meaning";
+}
+
+export type ReplySource = "model" | "fixed" | "model-off" | "model-failed";
+
+/** The note under a coach reply. It is a designed element, not debug output,
+ *  so every reply carries one. */
+export function noteFor(domain: AdviceDomain, source: ReplySource): string {
+  if (domain === "crisis") return "Crisis language, so this never goes to the model.";
+  if (source === "model") return "Answered by the local model, running on your device.";
+  if (source === "model-off") return "The local model isn't running, so this is the fixed guidance.";
+  if (source === "model-failed") return "The model didn't finish that one, so this is the fixed guidance.";
+  if (domain === "money") return "Money question, so this comes from the fixed guidance, not the model.";
+  if (domain === "housing") return "Housing question, so this comes from the fixed guidance, not the model.";
+  if (domain === "health") return "Health question, so this comes from the fixed guidance, not the model.";
+  return "Fixed guidance, written ahead of time rather than generated.";
+}
+
 export function coachReply(message: string, profile: Profile): string {
   const text = message.trim().toLowerCase();
-  if (!text) return "What feels most useful to talk through today: money, energy, connection, meaning, or home?";
-  if (classifyMessage(message) === "crisis") {
-    return "I'm glad you told me. If you may hurt yourself or you're in immediate danger, call your local emergency number now or go to the nearest emergency department. In Canada or the U.S., call or text 988 for immediate, confidential crisis support. Please tell someone you trust and stay with them while you get help. You deserve a person beside you right now.";
+  if (!text) return "Tell me what today actually looks like. Energy, money, sleep, people, or something else entirely.";
+
+  const domain = classifyMessage(message);
+
+  if (domain === "crisis") {
+    return "I'm not the right help for this, and I don't want to guess. Please contact your local emergency number now, or call or text 988 in Canada and the US for confidential crisis support. If there's someone nearby you trust, tell them tonight. You deserve a person beside you, not an app.";
   }
-  if (hasAny(text, ["money", "budget", "invest", "saving", "debt", "etf", "retire"])) {
-    const debtLine = profile.debt === "high-interest"
-      ? "Keep minimum payments current, then make a payoff plan for high-interest debt before taking on market risk."
-      : "Once you have a starter buffer, automate an amount that feels comfortable for your goals.";
-    return `A sensible order is to cover essentials, spend less than you bring in where you can, and build accessible emergency savings. ${debtLine} For long-term goals, you might use an automatic contribution to a low-cost, diversified broad-market ETF or equivalent fund. Check the account rules, fees, taxes, and your time horizon, and choose a level of risk you can live with. Markets can fall, so there are no guarantees. Start with one transfer you can keep. (This is general education, not personal financial advice.)`;
+
+  if (domain === "money") {
+    const investing = hasAny(text, ["invest", "etf", "stock", "market", "retire", "fund"])
+      ? " For investing, the boring answer is a low-cost diversified fund and a long time horizon. Check the fees, the account rules and how much of a drop you could sit through, because there are no guarantees."
+      : "";
+    return `Start with a buffer you can actually reach, not a number that sounds impressive. A few hundred dollars in a plain savings account keeps a flat tire from turning into a credit card balance. After that, whatever is charging you the most interest is the next thing to go.${investing} This is general education, not advice about your situation.`;
   }
-  if (hasAny(text, ["rent", "buy", "house", "housing", "mortgage", "home"])) {
-    return "Renting can be a good fit when flexibility, lower commitment, or a changing life matter. Owning can bring more control and stability, but the full cost includes interest, taxes, insurance, maintenance, and opportunity cost alongside the mortgage. Compare the likely five-year cost with the life you want. Neither choice is automatically better.";
+
+  if (domain === "housing") {
+    return "Renting buys flexibility and owning buys control, and both cost more than the sticker. Put the likely five-year total side by side, interest, taxes, insurance, maintenance and what you'd give up elsewhere, then compare that against the life you actually want in those five years. Neither one is automatically the grown-up choice.";
   }
-  if (hasAny(text, ["sleep", "tired", "energy", "rest"])) {
-    return "Try one sleep anchor: a wake time you can keep most days, plus a 30-minute softer landing at night. Put your phone out of reach, dim a light, and get some daylight early. If fatigue, snoring, or mood changes persist, a clinician can help. This is general education, not a diagnosis.";
+
+  if (domain === "health") {
+    if (hasAny(text, ["outside", "outdoors", "nature", "walk", "hike", "daylight"])) {
+      return "Make outside a cue, not a project. Step out for five minutes after your first drink of the day, or between two tasks, and let the pace be easy. Early light helps your sleep more than anything you'll try at 11pm.";
+    }
+    return "Wake time is the easier end to hold, and it usually pulls bedtime along with it. Pick one time you can keep within 30 minutes for seven days, weekends included, and leave the evening alone for now. If the tiredness sticks around, that's worth a real clinician, not me.";
   }
-  if (hasAny(text, ["outside", "outdoors", "nature", "walk", "hike", "daylight"])) {
-    return "Make outside time a cue, not a project. Step out for five minutes after your first drink or between two tasks, and let the pace be easy. A little daylight and movement can support mood, sleep, and energy; any amount is a useful start.";
+
+  if (hasAny(text, ["skip", "skipped", "missed", "behind", "quit", "failed", "too much", "overwhelm"])) {
+    return "One miss is just a Tuesday. Two in a row is how a habit quietly ends, so the only rule is don't miss twice. Do the smallest version of it today and call that done.";
   }
-  if (hasAny(text, ["meditat", "mindful", "breath", "calm down"])) {
-    return "Try a two-minute arrival: feel both feet, notice one sound, and let the exhale run a little longer than the inhale. You don't need to empty your mind; returning gently is the practice.";
+
+  if (domain === "habits") {
+    if (hasAny(text, ["cook", "cooking", "meal", "recipe", "food"])) {
+      return "Pick one meal you can make without thinking and cook it twice this week. Keep the ingredients where you can see them. Most of the effort in cooking is the deciding, so take that part out first.";
+    }
+    return "Try an identity-sized habit: I'm someone who takes the next small step. Give it a cue you already have, make it two minutes long, and keep the useful option within reach. If you miss, begin again tomorrow.";
   }
-  if (hasAny(text, ["cook", "cooking", "meal", "recipe", "food"])) {
-    return "Pick one reliable meal for this week and keep the ingredients easy to see. Make the first step tiny (wash the greens, start the rice, or open the recipe). Repetition cuts down decisions, and food doesn't need to be elaborate to help.";
+
+  if (domain === "relationships") {
+    return "Connection grows out of specific, low-pressure repetitions. Send one honest invitation with a real day in it, ask one more question than feels natural, and put the walk or the call somewhere it repeats. Showing up beats performing.";
   }
-  if (hasAny(text, ["habit", "routine", "motivation", "procrastinat"])) {
-    return "Try an identity-sized habit: 'I'm a person who takes the next tiny step.' Give it a cue, make it two minutes, and put it after something you already do. Keep the useful option nearby. If you miss, begin again tomorrow. One missed day doesn't have to become two.";
+
+  if (domain === "meaning") {
+    return "Notice the feeling without turning it into a verdict about you, then pick a two-minute thing that lines up with what you care about. Meaning usually shows up after you start, not before. If this has been heavy for a while, a qualified professional is a better place to take it than an app.";
   }
-  if (hasAny(text, ["friend", "lonely", "social", "relationship", "people"])) {
-    return "Connection tends to grow through specific, low-pressure repetitions. Send one honest invitation, ask a curious follow-up, and put a recurring walk or call on the calendar if that feels right. Consistency matters more than performing, and a small welcoming moment counts.";
-  }
-  if (hasAny(text, ["meaning", "purpose", "stuck", "happy", "anxious", "stress"])) {
-    return "Notice the feeling without turning it into a verdict, then choose a two-minute action that lines up with what matters to you. Meaning can show up after you begin: make something, help someone, step outside, or give one person your full attention. If distress persists or gets in the way of daily life, a qualified professional can support you.";
-  }
-  const vision = profile.vision ? ` You described a good life as "${profile.vision}."` : "";
-  return `You don't have to redesign your life today. Your next useful start is "${getAdviceStarts(profile)[0].title}." What would make that feel 20% easier?${vision}`;
+
+  const anchor = profile.goodDay.trim();
+  const pointer = anchor ? ` You told me a good day looks like this: "${anchor}." I'll keep pointing back to it.` : "";
+  return `Say a bit more about what today actually looks like. I'd rather hand you one small thing you'll do than five you won't.${pointer}`;
 }
 
 export function normalizeCoachText(text: string): string {
