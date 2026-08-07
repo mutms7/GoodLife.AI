@@ -41,3 +41,10 @@ tsconfig.tsbuildinfo
 /.wrangler/
 /outputs/
 /work/
+
+# The desktop installer downloads the pinned Qwen snapshot during CI. The
+# model is intentionally never committed to the repository.
+/desktop/model/*
+!/desktop/model/.gitkeep
+/release/
+/build-release-check*/

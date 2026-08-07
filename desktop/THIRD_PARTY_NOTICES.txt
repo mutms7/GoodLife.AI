@@ -1,0 +1,20 @@
+GoodLife.AI desktop model notice
+================================
+
+Qwen2.5-1.5B-Instruct-q4f16_1-MLC
+Copyright (c) Alibaba Cloud
+
+The Qwen2.5 model is distributed under the Apache License, Version 2.0.
+The complete license text is available at:
+https://www.apache.org/licenses/LICENSE-2.0
+
+This installer includes the MLC-compiled model snapshot and WebLLM runtime
+library. The model is downloaded by desktop/fetch-model.mjs at build time from
+the pinned upstream snapshot documented in desktop/model/manifest.json.
+
+Apache License, Version 2.0 (summary)
+-------------------------------------
+You may use, reproduce, and distribute this work under the terms of the
+Apache License, Version 2.0. A copy of the license must accompany the work.
+Unless required by applicable law or agreed to in writing, the work is
+provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND.

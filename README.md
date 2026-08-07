@@ -1,5 +1,9 @@
 # GoodLife.AI
 
+## Download (Recommended)
+
+[Download the latest Windows installer](https://github.com/mutms7/GoodLife.AI/releases/latest/download/GoodLife.AI-Setup.exe) (`GoodLife.AI-Setup.exe`). The desktop build includes the local model, keeps your profile on this device, and can run without an internet connection after installation.
+
 <p align="center">
   <img src="docs/images/marketing-home.png" alt="GoodLife.AI marketing homepage with sample coach answers" width="900" />
 </p>
@@ -203,5 +207,18 @@ The checks cover rendering, the playbook parser against the real `playbook.md`, 
 `npm test` runs the build and `tsc --noEmit` before the tests, so a type error fails the suite rather than sitting there quietly. The unused Cloudflare and Drizzle scaffold that used to break the typecheck (`db/`, `drizzle/`, `examples/d1/` and `app/chatgpt-auth.ts`) is gone, along with the `drizzle-orm` and `drizzle-kit` dependencies. Nothing imported it.
 
 ## Install it as an app
+
+The Windows desktop build is an Electron NSIS installer (`GoodLife.AI-Setup.exe`). It serves the same Vinext-rendered app from a fixed localhost origin, keeps Chromium hardware acceleration/WebGPU enabled, and uses Electron's persistent profile directory for local storage, Cache Storage, and WebLLM's model cache. Closing and reopening the app does not clear the profile; upgrades use the same profile as well.
+
+Desktop installers include the complete Qwen2.5-1.5B-Instruct q4f16_1 MLC snapshot and its WebGPU WASM runtime as installer resources. The model is fetched at build time by `npm run desktop:fetch-model` from a pinned Hugging Face revision; model files are intentionally ignored by git. The desktop WebLLM config points at those local resources, while web builds keep WebLLM's remote model defaults.
+
+To build the installer locally (the model is roughly 1.6 GB):
+
+~~~bash
+npm run desktop:fetch-model
+npm run desktop:package
+~~~
+
+Packaged builds check GitHub Releases for a newer stable version on startup. If an update is available it downloads and installs it, then restarts. Network failures are non-fatal, so an installed version remains usable offline. Every push to `main` runs the Windows workflow, assigns `1.0.<run number>`, tests and packages the app, and publishes the NSIS installer as the latest GitHub Release.
 
 GoodLife.AI is a Progressive Web App. On a supported browser, use the install prompt in the app or the browser's “Add to Home Screen” or “Install” command. The service worker caches the application shell so it opens like a standalone app after the first visit. The local model still needs its initial download before it can answer.

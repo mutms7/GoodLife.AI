@@ -15,6 +15,20 @@ export const MODEL_LABEL = "Qwen 1.5B";
  *  weights on disk, so the number we quote is never the flattering one. */
 export const MODEL_DOWNLOAD_LABEL = "about 1.6 GB";
 
+const DESKTOP_MODEL_WASM = "/model/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm";
+
+type DesktopBridge = {
+  isDesktop?: boolean;
+  modelBasePath?: string;
+  modelWasmPath?: string;
+};
+
+declare global {
+  interface Window {
+    goodlifeDesktop?: DesktopBridge;
+  }
+}
+
 export type ModelStatus = "off" | "loading" | "ready" | "error" | "unsupported";
 
 type Delta = { choices?: { delta?: { content?: string }; message?: { content?: string } }[] };
@@ -41,6 +55,26 @@ export function webgpuSupported() {
   return typeof navigator !== "undefined" && "gpu" in navigator;
 }
 
+function desktopAppConfig(webllm: typeof import("@mlc-ai/web-llm")) {
+  if (typeof window === "undefined" || !window.goodlifeDesktop?.isDesktop) return undefined;
+  // Electron serves the same React app from a fixed localhost origin. Only
+  // the model record changes: its weights and wasm are installer resources,
+  // while the web build keeps WebLLM's maintained remote defaults.
+  const modelBasePath = new URL(window.goodlifeDesktop.modelBasePath ?? "/model/resolve/main/", window.location.origin).href;
+  const modelWasmPath = new URL(window.goodlifeDesktop.modelWasmPath ?? DESKTOP_MODEL_WASM, window.location.origin).href;
+  return {
+    ...webllm.prebuiltAppConfig,
+    model_list: [{
+      model: modelBasePath,
+      model_id: MODEL_ID,
+      model_lib: modelWasmPath,
+      low_resource_required: true,
+      vram_required_MB: 1629.75,
+      overrides: { context_window_size: 4096 },
+    }],
+  };
+}
+
 export function isLoaded() {
   return engine !== null;
 }
@@ -51,6 +85,7 @@ export async function loadModel(onProgress: (fraction: number, text: string) => 
   if (engine) return engine;
   const webllm = await import("@mlc-ai/web-llm");
   const created = await webllm.CreateMLCEngine(MODEL_ID, {
+    appConfig: desktopAppConfig(webllm),
     initProgressCallback: (report) => onProgress(report.progress ?? 0, report.text || "Getting the model ready"),
   });
   engine = created as unknown as Engine;

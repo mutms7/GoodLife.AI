@@ -1,0 +1,91 @@
+name: Windows desktop release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Assign monotonically increasing release version
+        run: npm run desktop:set-version
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+
+      - name: Build and test web app
+        run: npm test
+
+      - name: Restore pinned model cache
+        uses: actions/cache@v4
+        with:
+          path: desktop/model
+          key: qwen2.5-1.5b-9bd564b064631febf14deadcac492efb761d60c3-${{ hashFiles('desktop/fetch-model.mjs') }}
+
+      - name: Download pinned offline model and wasm
+        run: npm run desktop:fetch-model
+
+      - name: Package GoodLife.AI-Setup.exe
+        run: npx electron-builder --win nsis --publish never
+
+      - name: Validate packaged app, offline model, and updater metadata
+        run: npm run desktop:validate-release
+
+      - name: Publish stable GitHub Release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          $version = node -p "require('./package.json').version"
+          $tag = "v$version"
+          $PSNativeCommandUseErrorActionPreference = $false
+          $existingJson = gh release view $tag --json isDraft 2>$null
+          $viewExit = $LASTEXITCODE
+          $PSNativeCommandUseErrorActionPreference = $true
+          if ($viewExit -ne 0) {
+            gh release create $tag --target $env:GITHUB_SHA --title "GoodLife.AI v$version" --generate-notes --draft
+            $isDraft = $true
+          } else {
+            $isDraft = ($existingJson | ConvertFrom-Json).isDraft
+          }
+
+          $tagSha = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha'
+          if ($tagSha -ne $env:GITHUB_SHA) {
+            throw "Release tag $tag points to $tagSha instead of $env:GITHUB_SHA"
+          }
+
+          if ($isDraft) {
+            gh release upload $tag release/GoodLife.AI-Setup.exe release/GoodLife.AI-Setup.exe.blockmap release/latest.yml --clobber
+          }
+
+          $release = gh release view $tag --json assets | ConvertFrom-Json
+          $assets = @{}
+          foreach ($asset in $release.assets) { $assets[$asset.name] = $asset.size }
+          foreach ($name in @("GoodLife.AI-Setup.exe", "GoodLife.AI-Setup.exe.blockmap", "latest.yml")) {
+            if (-not $assets.ContainsKey($name) -or $assets[$name] -le 0) { throw "Release asset is missing or empty: $name" }
+          }
+          if ($assets["GoodLife.AI-Setup.exe"] -lt 500000000) { throw "Published installer is too small to contain the offline model" }
+
+          if ($isDraft) { gh release edit $tag --draft=false --latest }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

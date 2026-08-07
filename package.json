@@ -2,6 +2,7 @@
   "name": "goodlife-ai",
   "version": "0.1.0",
   "private": true,
+  "main": "desktop/main.cjs",
   "engines": {
     "node": ">=22.13.0"
   },
@@ -9,12 +10,18 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "test": "npm run build && npm run typecheck && node --experimental-strip-types --test tests/rendered-html.test.mjs tests/advice.test.mjs tests/prompt.test.mjs tests/playbook.test.mjs tests/storage.test.mjs",
+    "test": "npm run build && npm run typecheck && node --experimental-strip-types --test tests/rendered-html.test.mjs tests/advice.test.mjs tests/prompt.test.mjs tests/playbook.test.mjs tests/storage.test.mjs tests/desktop.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "desktop:fetch-model": "node desktop/fetch-model.mjs",
+    "desktop:set-version": "node desktop/set-version.mjs",
+    "desktop:validate-release": "node desktop/validate-release.mjs",
+    "desktop:package": "npm run build && npm run desktop:fetch-model && electron-builder --win nsis",
+    "desktop:release": "npm run desktop:set-version && npm run desktop:package"
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.84",
+    "electron-updater": "^6.6.2",
     "next": "16.3.0",
     "react": "19.2.6",
     "react-dom": "19.2.6"
@@ -30,6 +37,8 @@
     "@vitejs/plugin-rsc": "0.5.26",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.0",
+    "electron": "37.10.3",
+    "electron-builder": "26.15.3",
     "nitro": "^3.0.260610-beta",
     "react-server-dom-webpack": "19.2.6",
     "tailwindcss": "4.3.3",
@@ -38,5 +47,38 @@
     "vite": "8.0.13",
     "wrangler": "4.92.0"
   },
-  "type": "module"
+  "type": "module",
+  "build": {
+    "appId": "ai.goodlife.desktop",
+    "productName": "GoodLife.AI",
+    "directories": { "output": "release" },
+    "files": [
+      "desktop/**/*",
+      "dist/**/*",
+      "package.json",
+      "node_modules/@mlc-ai/web-llm/**/*",
+      "node_modules/electron-updater/**/*"
+    ],
+    "extraResources": [
+      { "from": "desktop/model", "to": "model", "filter": ["**/*"] }
+    ],
+    "win": {
+      "icon": "public/icon-512.png",
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "artifactName": "GoodLife.AI-Setup.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "runAfterFinish": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "mutms7",
+      "repo": "GoodLife.AI",
+      "releaseType": "release"
+    }
+  }
 }
