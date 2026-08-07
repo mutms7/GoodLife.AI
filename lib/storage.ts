@@ -1,6 +1,8 @@
 import { PRIORITIES, emptyProfile, type CheckKey, type CheckLevel, type Priority, type Profile } from "@/lib/advice";
 
-export type Message = { isUser: boolean; text: string; note?: string };
+/** `retryable` marks a reply the model failed to finish, so the thread can
+ *  offer another attempt instead of leaving a dead end. */
+export type Message = { isUser: boolean; text: string; note?: string; retryable?: boolean };
 /** Completed action ids, keyed by local date. */
 export type DayLog = Record<string, string[]>;
 
@@ -82,7 +84,7 @@ function readMessages(value: unknown): Message[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is Message => Boolean(item && typeof item === "object" && typeof (item as Message).text === "string"))
-    .map((item) => ({ isUser: Boolean(item.isUser), text: item.text.slice(0, 4000), note: typeof item.note === "string" ? item.note : undefined }))
+    .map((item) => ({ isUser: Boolean(item.isUser), text: item.text.slice(0, 4000), note: typeof item.note === "string" ? item.note : undefined, retryable: item.retryable === true }))
     .slice(-120);
 }
 

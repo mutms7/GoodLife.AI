@@ -329,7 +329,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .msg-note {
   align-self: flex-start;
   font-size: 12px;
-  color: var(--color-neutral-600);
+  color: var(--color-neutral-700);
   background: var(--color-neutral-200);
   border-radius: 999px;
   padding: 4px 12px;
@@ -445,13 +445,31 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   justify-content: space-between;
   gap: 12px;
 }
-.composer-status { font-size: 12px; color: var(--color-neutral-600); }
+.composer-status { font-size: 12px; color: var(--color-neutral-700); }
 .composer-note {
   text-align: center;
   font-size: 11px;
-  color: var(--color-neutral-600);
+  color: var(--color-neutral-700);
   padding-top: 10px;
 }
+
+/* The download gate stands in for the composer until the model is ready. */
+.model-gate {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-divider);
+  border-radius: 24px;
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
+}
+.model-gate-text { display: flex; flex-direction: column; gap: 5px; }
+.model-gate-text strong { font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 18px; }
+.model-gate-text span { font-size: 13px; color: var(--color-neutral-700); }
+.model-gate .btn { align-self: flex-start; }
+.model-gate-pct { font-size: 12px; color: var(--color-neutral-700); }
+.msg-retry { align-self: flex-start; margin-top: 4px; font-size: 13px; padding: 5px 14px; }
 
 /* ── first run ───────────────────────────────────────────────────────────── */
 
