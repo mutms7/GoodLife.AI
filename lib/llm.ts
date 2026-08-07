@@ -1,7 +1,7 @@
 import { normalizeCoachText } from "@/lib/advice";
 import { PLAYBOOK } from "@/lib/coach-playbook";
 import { fallbackTopic, readTopicChoice, topicMenu, type Topic } from "@/lib/playbook";
-import { buildSystemPrompt, buildTopicSystemPrompt, buildTopicUserPrompt, buildUserPrompt, looksLikeLeak, makeFence, prescribesMedication } from "@/lib/prompt";
+import { buildHistoryMessages, buildSystemPrompt, buildTopicSystemPrompt, buildTopicUserPrompt, buildUserPrompt, looksLikeLeak, makeFence, prescribesMedication, type Turn } from "@/lib/prompt";
 
 /* 0.5B was too small to hold the rules it was given. It wrote listicles when
  * the voice asked for a few sentences, and it recommended a sleeping pill it
@@ -30,6 +30,9 @@ type Engine = {
     };
   };
   unload?: () => Promise<void>;
+  /** WebLLM's cooperative cancel. It ends the current stream rather than
+   *  throwing, so the partial text stays usable. */
+  interruptGenerate?: () => void;
 };
 
 let engine: Engine | null = null;
@@ -110,7 +113,13 @@ export async function chooseTopic(message: string): Promise<Topic> {
   }
 }
 
-export type StreamRequest = { goodDay: string; message: string; notes: string[] };
+/** Ends the current generation. The stream closes normally, so whatever the
+ *  model had already written is kept rather than thrown away. */
+export function stopGeneration() {
+  engine?.interruptGenerate?.();
+}
+
+export type StreamRequest = { goodDay: string; message: string; notes: string[]; history?: Turn[] };
 
 /** Why a reply never made it to the thread. `blocked` means we threw away a
  *  finished thought on purpose; `failed` means there was nothing worth showing.
@@ -129,6 +138,7 @@ export async function streamReply(
   const stream = await engine.chat.completions.create({
     messages: [
       { role: "system", content: buildSystemPrompt({ goodDay: request.goodDay, notes: request.notes }, fence) },
+      ...buildHistoryMessages(request.history ?? [], fence),
       { role: "user", content: buildUserPrompt(request.message, fence) },
     ],
     temperature: 0.4,

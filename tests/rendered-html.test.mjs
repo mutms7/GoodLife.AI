@@ -59,7 +59,9 @@ test("the chat is gated on the model, with no fixed-guidance chat behind it", as
     readFile(new URL("../lib/llm.ts", import.meta.url), "utf8"),
     ]);
   // The composer only renders once the model is ready; otherwise it's the gate.
-  assert.match(app, /status === "ready"\s*\n?\s*\?\s*<Composer/);
+  // Matched loosely on purpose. The point is that Composer is behind the
+  // ready check, not how the ternary happens to be wrapped this week.
+  assert.match(app, /status === "ready"[\s\S]{0,80}<Composer/);
   assert.match(app, /<ModelGate/);
   // The old bypass is gone: no reply path that answers without the model.
   assert.doesNotMatch(app, /coachReply|isModelSafe|guidanceFor/);

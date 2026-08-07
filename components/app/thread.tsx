@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Dandelion, Icon } from "@/components/marks";
-import type { Action } from "@/lib/advice";
+import { GRADUATE_AT, type Action } from "@/lib/advice";
 import { MODEL_DOWNLOAD_LABEL, MODEL_LABEL, type ModelStatus } from "@/lib/llm";
 import type { Message } from "@/lib/storage";
 
@@ -57,21 +57,48 @@ function usePhone() {
   return phone;
 }
 
-export function PlanCard({ actions, done, onToggle, onAsk, canAsk }: { actions: Action[]; done: string[]; onToggle: (id: string) => void; onAsk: (text: string) => void; canAsk: boolean }) {
+export function PlanCard({ actions, done, counts, onToggle, onSwap, onAsk, canAsk }: {
+  actions: Action[];
+  done: string[];
+  counts: Record<string, number>;
+  onToggle: (id: string) => void;
+  onSwap: (id: string) => void;
+  onAsk: (text: string) => void;
+  canAsk: boolean;
+}) {
   const phone = usePhone();
   return (
     <div className="plan-card">
       {actions.map((action) => {
         const isDone = done.includes(action.id);
+        const soFar = counts[action.id] ?? 0;
         return (
-          <button type="button" key={action.id} className={`plan-row ${isDone ? "is-done" : ""}`} onClick={() => onToggle(action.id)} aria-pressed={isDone}>
-            <span className="plan-check">{isDone && <Icon name="check" size={13} />}</span>
-            <span className="plan-text">
-              {!phone && <span className="plan-kicker">{action.kicker}</span>}
-              <span className="plan-title">{action.title}</span>
-              {!(phone && isDone) && <span className="plan-body">{phone ? action.short : action.body}</span>}
-            </span>
-          </button>
+          // A row is two controls, not one, so the swap button can't nest
+          // inside the button that checks the row off.
+          <div className={`plan-row ${isDone ? "is-done" : ""}`} key={action.id}>
+            <button type="button" className="plan-main" onClick={() => onToggle(action.id)} aria-pressed={isDone}>
+              <span className="plan-check">{isDone && <Icon name="check" size={13} />}</span>
+              <span className="plan-text">
+                {!phone && (
+                  <span className="plan-kicker">
+                    {action.kicker}
+                    {soFar > 0 && <span className="plan-streak"> · {soFar} of {GRADUATE_AT} done</span>}
+                  </span>
+                )}
+                <span className="plan-title">{action.title}</span>
+                {!(phone && isDone) && <span className="plan-body">{phone ? action.short : action.body}</span>}
+              </span>
+            </button>
+            <button
+              type="button"
+              className="plan-swap"
+              onClick={() => onSwap(action.id)}
+              aria-label={`Swap out ${action.title}`}
+              title="Not today, show me another"
+            >
+              <Icon name="shuffle" size={14} />
+            </button>
+          </div>
         );
       })}
       <div className="plan-footer">
@@ -130,7 +157,7 @@ export function ModelGate({ status, progress, onStart }: { status: Exclude<Model
   );
 }
 
-export function Composer({ draft, setDraft, onSend, status, busy }: { draft: string; setDraft: (value: string) => void; onSend: () => void; status: string; busy: boolean }) {
+export function Composer({ draft, setDraft, onSend, onStop, status, busy }: { draft: string; setDraft: (value: string) => void; onSend: () => void; onStop: () => void; status: string; busy: boolean }) {
   const field = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -159,9 +186,17 @@ export function Composer({ draft, setDraft, onSend, status, busy }: { draft: str
         />
         <div className="composer-foot">
           <span className="composer-status">{status}</span>
-          <button type="button" className="btn btn-send" onClick={onSend} disabled={busy || !draft.trim()} aria-label="Send">
-            <Icon name="arrow-up" size={16} />
-          </button>
+          {/* While it's writing, the same slot stops it. A reply you can't
+              interrupt is the worst part of a slow on-device model. */}
+          {busy ? (
+            <button type="button" className="btn btn-send is-stop" onClick={onStop} aria-label="Stop generating">
+              <Icon name="square" size={15} />
+            </button>
+          ) : (
+            <button type="button" className="btn btn-send" onClick={onSend} disabled={!draft.trim()} aria-label="Send">
+              <Icon name="arrow-up" size={16} />
+            </button>
+          )}
         </div>
       </div>
       <p className="composer-note">A reflection tool, not medical, legal or financial advice.</p>
@@ -169,12 +204,31 @@ export function Composer({ draft, setDraft, onSend, status, busy }: { draft: str
   );
 }
 
-/** Keeps the newest message in view when one arrives. */
+/** How far from the bottom still counts as "following along". */
+const STICK_TO_BOTTOM_PX = 120;
+
+/** Keeps the newest message in view, unless you've scrolled up to reread
+ *  something. Snapping back on every token made the thread unreadable while
+ *  the model was writing. */
 export function useScrollToLatest(dependency: unknown) {
   const ref = useRef<HTMLDivElement>(null);
+  const following = useRef(true);
+
   useEffect(() => {
     const node = ref.current;
-    if (node) node.scrollTop = node.scrollHeight;
+    if (!node) return;
+    const onScroll = () => {
+      const distance = node.scrollHeight - node.scrollTop - node.clientHeight;
+      following.current = distance <= STICK_TO_BOTTOM_PX;
+    };
+    node.addEventListener("scroll", onScroll, { passive: true });
+    return () => node.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (node && following.current) node.scrollTop = node.scrollHeight;
   }, [dependency]);
+
   return ref;
 }

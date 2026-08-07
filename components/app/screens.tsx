@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { getFirstWeekPlan, type Profile } from "@/lib/advice";
+import { Icon } from "@/components/marks";
+import { GRADUATE_AT, getWeekPlan, type Action } from "@/lib/advice";
 import type { ModelStatus } from "@/lib/llm";
-import type { recentDays } from "@/lib/storage";
+import type { RecentDay } from "@/lib/storage";
 
 const IDEAS: { tag: string; tone: "sage" | "terracotta" | "neutral"; title: string; body: string; source: string }[] = [
   { tag: "Habits", tone: "sage", title: "Make it smaller than feels worth doing", body: "Two minutes is not a compromise, it's the whole trick. A habit you can do on your worst day is the only one that survives.", source: "After Atomic Habits" },
@@ -105,29 +106,93 @@ export function YourData({ status, progress, onToggleModel, onExport, onClear }:
   );
 }
 
-export function Week({ profile, days }: { profile: Profile; days: ReturnType<typeof recentDays> }) {
+export function Week({ days, selected, onSelect, planAction, planDay, served, done, graduated }: {
+  days: RecentDay[];
+  selected: string;
+  onSelect: (key: string) => void;
+  planAction: Action | undefined;
+  /** Zero-based index into the seven steps, or -1 before a plan starts. */
+  planDay: number;
+  served: Action[];
+  done: string[];
+  graduated: Action[];
+}) {
+  const day = days.find((item) => item.key === selected) ?? days[0];
+  const plan = getWeekPlan(planAction);
+
   return (
     <div className="screen-scroll">
       <div className="screen-lead">
         <h3>Your days</h3>
         <p>A returning streak, not a score. A day counts once you check anything off, and one miss is just a Tuesday.</p>
       </div>
+
       <div className="week-days">
-        {days.map((day) => (
-          <div className={`week-day ${day.isToday ? "is-today" : ""}`} key={day.key}>
-            {day.label}
-            <span>{day.done ? `${day.done} of 3 done` : "skipped"}</span>
-          </div>
+        {days.map((item) => (
+          <button
+            type="button"
+            className={`week-day ${item.isToday ? "is-today" : ""} ${item.key === day?.key ? "is-selected" : ""}`}
+            key={item.key}
+            onClick={() => onSelect(item.key)}
+            aria-pressed={item.key === day?.key}
+          >
+            {item.label}
+            <span>{item.done ? `${item.done} of ${item.served} done` : "skipped"}</span>
+          </button>
         ))}
       </div>
-      <div className="week-plan">
-        {getFirstWeekPlan(profile).map((step) => (
-          <div className="week-step" key={step.day}>
-            <strong>{step.day}</strong>
-            <span>{step.action}</span>
-          </div>
-        ))}
+
+      {/* Clicking a day used to land on this screen and show nothing about
+          that day. Now it shows what was actually on offer. */}
+      <div className="week-detail">
+        <strong>{day?.label ?? "Today"}</strong>
+        {served.length === 0 ? (
+          <p className="week-empty">Nothing was logged for this day.</p>
+        ) : (
+          <ul className="week-detail-list">
+            {served.map((action) => (
+              <li key={action.id} className={done.includes(action.id) ? "is-done" : ""}>
+                <span className="week-detail-mark">{done.includes(action.id) && <Icon name="check" size={12} />}</span>
+                {action.title}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
+
+      {planAction && (
+        <>
+          <div className="screen-lead">
+            <h4>Seven days on {planAction.title.toLowerCase()}</h4>
+            <p>{planDay >= 0 ? `You're on day ${planDay + 1}.` : "This starts once it's your first action of the day."} The sequence restarts whenever your top action changes.</p>
+          </div>
+          <div className="week-plan">
+            {plan.map((step, index) => (
+              <div className={`week-step ${index === planDay ? "is-current" : ""} ${index < planDay ? "is-past" : ""}`} key={step.day}>
+                <strong>{step.day}</strong>
+                <span>{step.action}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {graduated.length > 0 && (
+        <>
+          <div className="screen-lead">
+            <h4>Off the list</h4>
+            <p>Checked off {GRADUATE_AT} times, so they stopped being suggestions. That&apos;s the point of the streak.</p>
+          </div>
+          <div className="week-graduated">
+            {graduated.map((action) => (
+              <div className="week-graduate" key={action.id}>
+                <span className="week-graduate-mark"><Icon name="sprout" size={14} /></span>
+                {action.title}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

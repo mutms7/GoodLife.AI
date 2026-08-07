@@ -37,6 +37,10 @@ First run is a three-step conversation rather than a form. You describe an ordin
 
 The coach thread is the home screen, and the day's plan arrives inside it as a message you check off. The app ranks three starting actions from those answers: rough areas first, then what you said matters. Someone with rough sleep, rough money, and energy on their list gets a wake-time anchor, a payday transfer, and a daylight walk. You can argue with any of it in the same thread.
 
+The three don't stay the same forever. Check an action off fourteen times and it graduates: two weeks is roughly how long a repetition takes to start carrying itself, so at that point it's a habit and the slot is worth more to something else. Until then the row shows how far along it is, and the shuffle button pushes a suggestion aside for the day when it doesn't fit. Sources are drawn round-robin rather than one at a time, so rough sleep gets you a sleep action and a money action rather than three sleep actions.
+
+None of that is stored. What was on offer on a given day is recomputed from your profile, the completions before that day, and any swaps you made on it, which is why clicking back through the week shows what you actually saw. Graduation counts completions from previous days only, so checking an action off for the third time doesn't make it vanish out from under the tick you just earned. It goes tomorrow.
+
 <p align="center">
   <img src="docs/images/your-data.png" alt="GoodLife.AI Your data screen with the local AI coach card" width="800" />
 </p>
@@ -103,7 +107,9 @@ The reference notes sit in the prompt where you can't see them, so the app has t
 
 None of this makes a 500M-parameter model trustworthy on its own. It narrows what a bad generation can turn into, and the disclaimers survive either way.
 
-Replies stream token by token. If the model fails mid-generation, the coach says so and offers to try again rather than substituting a different answer.
+Replies stream token by token, and you can stop one mid-sentence. If the model fails, the coach says so and offers to try again rather than substituting a different answer.
+
+The last few turns go with each message, so "why?" and "that won't work for me" land as follow-ups rather than as standalone questions. Older turns from you are fenced exactly like the current one: an injection parked three messages back is the same untrusted input, and it would otherwise walk in through the side door.
 
 ## The ideas behind the product
 
@@ -194,7 +200,7 @@ npm run build
 
 The checks cover rendering, the playbook parser against the real `playbook.md`, the crisis safety net and its `Except:` list, what happens when the model names a topic that doesn't exist, the prompt-injection boundary, and how the day's three actions are chosen. The playbook tests assert on the shipped file rather than a fixture, so editing the markdown badly, a topic with no `When:` line or a missing disclaimer, fails the suite.
 
-`npx tsc --noEmit` currently reports three errors, all in the unused Cloudflare and Drizzle scaffold left over from the starter template (`db/`, and the `Fetcher` and `D1Database` globals in `worker/index.ts`). No application code imports it.
+`npm test` runs the build and `tsc --noEmit` before the tests, so a type error fails the suite rather than sitting there quietly. The unused Cloudflare and Drizzle scaffold that used to break the typecheck (`db/`, `drizzle/`, `examples/d1/` and `app/chatgpt-auth.ts`) is gone, along with the `drizzle-orm` and `drizzle-kit` dependencies. Nothing imported it.
 
 ## Install it as an app
 
