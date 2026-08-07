@@ -38,9 +38,9 @@ export const emptyProfile: Profile = {
   checks: { energy: "Shaky", money: "Shaky", sleep: "Shaky", social: "Shaky" },
 };
 
-/* The pool has to outlast graduation. At three completions each and three
- * slots a day, the original nine actions ran dry in about a fortnight, which
- * is exactly when someone actually using the app would notice. */
+/* Twenty-one actions rather than the original nine. Graduation is slow enough
+ * now that the pool won't run dry, but the shuffle button draws on the same
+ * list, and three swaps on a bad day used to hit the bottom of it. */
 const ACTIONS: Record<string, Action> = {
   "sleep-anchor": {
     id: "sleep-anchor",
@@ -215,9 +215,14 @@ const CHECK_ACTIONS: [CheckKey, string[]][] = [
 
 const FILLERS = ["two-minute-start", "one-friction", "ten-minute-reset", "never-miss-twice", "meaning-block", "repeatable-meal", "one-page", "stock-one-shelf", "ask-one-more", "lunch-outside"];
 
-/** Checked off this many times and an action stops being suggested. It's a
- *  habit by then, and the slot is worth more to something else. */
-export const GRADUATE_AT = 3;
+/** Checked off this many times and an action stops being suggested.
+ *
+ * Two weeks, because that's roughly how long a repetition has to keep
+ * happening before it carries itself. Three was quicker to feel like progress
+ * and was lying about it: nobody has built a habit in three days. The visible
+ * progress is the "4 of 14" counter on the row, and the shuffle button is
+ * there for the days a suggestion doesn't fit. */
+export const GRADUATE_AT = 14;
 
 /** How many times each action has ever been checked off. */
 export function completionCounts(days: Record<string, string[]>): Record<string, number> {
