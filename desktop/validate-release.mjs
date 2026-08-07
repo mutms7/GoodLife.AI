@@ -12,11 +12,13 @@ const metadata = path.join(release, "latest.yml");
 const unpacked = path.join(release, "win-unpacked");
 const executable = path.join(unpacked, "GoodLife.AI.exe");
 const model = path.join(unpacked, "resources", "model");
+const appArchive = path.join(unpacked, "resources", "app.asar");
 
-for (const filename of [installer, blockmap, metadata, executable, path.join(model, "manifest.json")]) {
+for (const filename of [installer, blockmap, metadata, executable, appArchive, path.join(model, "manifest.json")]) {
   if (!existsSync(filename)) throw new Error(`Release is missing ${path.relative(root, filename)}`);
 }
 if (statSync(installer).size < 500_000_000) throw new Error("Installer is too small to contain the offline model");
+if (statSync(appArchive).size > 500_000_000) throw new Error("App archive is unexpectedly large; the model may have been packaged twice");
 
 const latest = readFileSync(metadata, "utf8");
 if (!latest.includes("GoodLife.AI-Setup.exe") || !/^version: 1\.0\.\d+$/m.test(latest)) {

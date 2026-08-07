@@ -54,6 +54,7 @@
     "directories": { "output": "release" },
     "files": [
       "desktop/**/*",
+      "!desktop/model/**/*",
       "dist/**/*",
       "package.json",
       "node_modules/@mlc-ai/web-llm/**/*",
