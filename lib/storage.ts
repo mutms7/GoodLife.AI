@@ -1,63 +1,32 @@
 import { PRIORITIES, emptyProfile, type CheckKey, type CheckLevel, type Priority, type Profile } from "@/lib/advice";
+import { dateKey, type DayLog } from "@/lib/days";
+
+/* The date and day-log helpers live in days.ts so the tests can reach them
+ * without the bundler. Re-exported here because this is where callers look. */
+export { dateKey, daysBetween, recentDays, shiftDays, streakFrom, type DayLog, type RecentDay } from "@/lib/days";
 
 /** `retryable` marks a reply the model failed to finish, so the thread can
  *  offer another attempt instead of leaving a dead end. */
 export type Message = { isUser: boolean; text: string; note?: string; retryable?: boolean };
-/** Completed action ids, keyed by local date. */
-export type DayLog = Record<string, string[]>;
 
 export type SavedData = {
-  version: 2;
+  version: 3;
   profile: Profile | null;
   days: DayLog;
   msgs: Message[];
   modelOn: boolean;
+  /** Action ids pushed aside for a given day, so a swap survives a reload.
+   *
+   *  The only new state v3 adds. Which three were shown on a day, and which
+   *  day of the seven-day sequence you're on, are both recomputed from the
+   *  profile plus these, so there's nothing stored to drift out of sync. */
+  swaps: DayLog;
 };
 
-const KEY = "goodlife-local-v2";
-const LEGACY_KEY = "goodlife-local-v1";
+const KEY = "goodlife-local-v3";
+const LEGACY_KEYS = ["goodlife-local-v2", "goodlife-local-v1"];
 
-export const emptyData: SavedData = { version: 2, profile: null, days: {}, msgs: [], modelOn: false };
-
-export function dateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export function shiftDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-/** Days returned to in a row. A day counts once anything is checked off, and
- *  today not being started yet doesn't end the run. */
-export function streakFrom(days: DayLog, today = new Date()) {
-  let cursor = today;
-  if (!(days[dateKey(cursor)]?.length)) cursor = shiftDays(cursor, -1);
-  let count = 0;
-  while (days[dateKey(cursor)]?.length) {
-    count += 1;
-    cursor = shiftDays(cursor, -1);
-  }
-  return count;
-}
-
-/** The rail's "Your days": today plus the three before it. */
-export function recentDays(days: DayLog, today = new Date()) {
-  return [0, -1, -2, -3].map((offset) => {
-    const date = shiftDays(today, offset);
-    const key = dateKey(date);
-    return {
-      key,
-      label: offset === 0 ? "Today" : new Intl.DateTimeFormat("en", { weekday: "long" }).format(date),
-      done: days[key]?.length ?? 0,
-      isToday: offset === 0,
-    };
-  });
-}
+export const emptyData: SavedData = { version: 3, profile: null, days: {}, msgs: [], modelOn: false, swaps: {} };
 
 function readPriorities(value: unknown): Priority[] {
   if (!Array.isArray(value)) return [];
@@ -108,21 +77,39 @@ const LEGACY_PRIORITIES: Record<string, Priority> = {
   home: "Home",
 };
 
+/** v2 stored everything v3 does except swaps, so it reads straight through.
+ *  v1 asked different questions. */
 function migrateLegacy(): SavedData | null {
-  const raw = localStorage.getItem(LEGACY_KEY);
-  if (!raw) return null;
-  const saved = JSON.parse(raw) as { profile?: { vision?: string; priorities?: string[] }; completionDays?: string[]; chat?: { role?: string; text?: string }[] };
-  if (!saved.profile) return null;
-  const priorities = (saved.profile.priorities ?? []).map((id) => LEGACY_PRIORITIES[id]).filter(Boolean).slice(0, 3);
-  const days: DayLog = {};
-  for (const day of saved.completionDays ?? []) if (/^\d{4}-\d{2}-\d{2}$/.test(day)) days[day] = ["carried-over"];
-  return {
-    version: 2,
-    profile: { goodDay: typeof saved.profile.vision === "string" ? saved.profile.vision : "", priorities, checks: emptyProfile.checks },
-    days,
-    msgs: readMessages((saved.chat ?? []).map((item) => ({ isUser: item.role === "user", text: item.text }))),
-    modelOn: false,
-  };
+  for (const key of LEGACY_KEYS) {
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+    try {
+      const saved = JSON.parse(raw) as Record<string, unknown>;
+      if (saved.version === 2 || saved.msgs || saved.days) {
+        return {
+          ...emptyData,
+          profile: readProfile(saved.profile),
+          days: readDays(saved.days),
+          msgs: readMessages(saved.msgs),
+          modelOn: Boolean(saved.modelOn),
+        };
+      }
+      const v1 = saved as { profile?: { vision?: string; priorities?: string[] }; completionDays?: string[]; chat?: { role?: string; text?: string }[] };
+      if (!v1.profile) continue;
+      const priorities = (v1.profile.priorities ?? []).map((id) => LEGACY_PRIORITIES[id]).filter(Boolean).slice(0, 3);
+      const days: DayLog = {};
+      for (const day of v1.completionDays ?? []) if (/^\d{4}-\d{2}-\d{2}$/.test(day)) days[day] = ["carried-over"];
+      return {
+        ...emptyData,
+        profile: { goodDay: typeof v1.profile.vision === "string" ? v1.profile.vision : "", priorities, checks: emptyProfile.checks },
+        days,
+        msgs: readMessages((v1.chat ?? []).map((item) => ({ isUser: item.role === "user", text: item.text }))),
+      };
+    } catch {
+      // Try the next key rather than losing everything to one bad blob.
+    }
+  }
+  return null;
 }
 
 export function load(): SavedData {
@@ -131,11 +118,12 @@ export function load(): SavedData {
     if (!raw) return migrateLegacy() ?? emptyData;
     const saved = JSON.parse(raw) as Partial<SavedData>;
     return {
-      version: 2,
+      version: 3,
       profile: readProfile(saved.profile),
       days: readDays(saved.days),
       msgs: readMessages(saved.msgs),
       modelOn: Boolean(saved.modelOn),
+      swaps: readDays(saved.swaps),
     };
   } catch {
     // Malformed JSON or storage turned off: start fresh in memory.
@@ -154,7 +142,7 @@ export function save(data: SavedData) {
 export function clear() {
   try {
     localStorage.removeItem(KEY);
-    localStorage.removeItem(LEGACY_KEY);
+    for (const key of LEGACY_KEYS) localStorage.removeItem(key);
   } catch {
     // Nothing to do if storage is unavailable.
   }

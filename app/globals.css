@@ -138,6 +138,8 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 }
 .btn-send:hover { background: var(--color-accent-600); }
 .btn-send:active { background: var(--color-accent-700); }
+.btn-send.is-stop { background: var(--color-neutral-800); }
+.btn-send.is-stop:hover { background: var(--color-neutral-900); }
 
 .dandelion { display: block; }
 
@@ -371,18 +373,40 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   box-shadow: var(--shadow-md);
   overflow: hidden;
 }
+/* The row is a container now: one button checks it off, one swaps it out. */
 .plan-row {
   display: flex;
-  gap: 13px;
+  align-items: flex-start;
   width: 100%;
+  border-bottom: 1px solid var(--color-divider);
+}
+.plan-main {
+  display: flex;
+  gap: 13px;
+  flex: 1;
+  min-width: 0;
   text-align: left;
   border: 0;
-  border-bottom: 1px solid var(--color-divider);
   background: transparent;
-  padding: 16px 20px;
+  padding: 16px 8px 16px 20px;
 }
+.plan-swap {
+  flex: none;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-right: 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-neutral-600);
+}
+.plan-swap:hover { background: var(--color-neutral-300); color: var(--color-neutral-800); }
 .plan-row:hover { background: var(--color-neutral-200); }
-.plan-row.is-done { opacity: 0.6; }
+.plan-row.is-done .plan-main { opacity: 0.6; }
+.plan-streak { text-transform: none; letter-spacing: 0; color: var(--color-accent-2-700); }
 .plan-check {
   width: 22px;
   height: 22px;
@@ -392,6 +416,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   border-radius: 999px;
   border: 2px solid var(--color-neutral-400);
 }
+.plan-row.is-done .plan-title { text-decoration: line-through; }
 .plan-row.is-done .plan-check {
   border-color: var(--color-accent-2-600);
   background: var(--color-accent-2-600);
@@ -405,7 +430,6 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   color: var(--color-neutral-600);
 }
 .plan-title { font-size: 16px; font-weight: 600; }
-.plan-row.is-done .plan-title { text-decoration: line-through; }
 .plan-body { font-size: 14px; color: var(--color-neutral-700); }
 .plan-footer {
   display: flex;
@@ -470,6 +494,19 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .model-gate .btn { align-self: flex-start; }
 .model-gate-pct { font-size: 12px; color: var(--color-neutral-700); }
 .msg-retry { align-self: flex-start; margin-top: 4px; font-size: 13px; padding: 5px 14px; }
+
+/* Announced to screen readers, never drawn. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ── first run ───────────────────────────────────────────────────────────── */
 
@@ -702,9 +739,53 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   padding: 13px 20px;
   font-size: 15px;
 }
-.week-day span { font-size: 14px; color: var(--color-neutral-600); }
+.week-day { width: 100%; text-align: left; }
+.week-day span { font-size: 14px; color: var(--color-neutral-700); }
 .week-day.is-today { background: var(--color-accent-2-200); border-color: transparent; }
 .week-day.is-today span { color: var(--color-accent-2-800); }
+.week-day.is-selected { border-color: var(--color-accent-500); box-shadow: 0 0 0 1px var(--color-accent-500); }
+
+/* What was actually on offer for the day you clicked. */
+.week-detail {
+  max-width: 700px;
+  margin-top: 20px;
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-divider);
+  border-radius: 24px;
+  padding: 18px 22px;
+}
+.week-detail strong { display: block; font-size: 15px; margin-bottom: 10px; }
+.week-detail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.week-detail-list li { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.week-detail-list li.is-done { color: var(--color-neutral-700); text-decoration: line-through; }
+.week-detail-mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid var(--color-neutral-400);
+}
+.week-detail-list li.is-done .week-detail-mark {
+  border-color: var(--color-accent-2-600);
+  background: var(--color-accent-2-600);
+  color: #fff;
+}
+.week-empty { font-size: 14px; color: var(--color-neutral-700); margin: 0; }
+
+.week-graduated { display: flex; flex-wrap: wrap; gap: 10px; max-width: 700px; }
+.week-graduate {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  background: var(--color-accent-2-200);
+  color: var(--color-accent-2-800);
+  border-radius: 999px;
+  padding: 9px 16px;
+}
+.week-graduate-mark { display: grid; place-items: center; }
 .week-plan {
   display: flex;
   flex-direction: column;
@@ -735,6 +816,9 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   padding-top: 2px;
 }
 .week-step span { font-size: 15px; }
+.week-step.is-past { opacity: 0.55; }
+.week-step.is-current { background: var(--color-accent-2-200); }
+.week-step.is-current strong { color: var(--color-accent-2-800); }
 
 /* ── mobile tab bar ──────────────────────────────────────────────────────── */
 
