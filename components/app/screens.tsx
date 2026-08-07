@@ -36,11 +36,11 @@ export function Ideas() {
 }
 
 const MODEL_STATUS: Record<ModelStatus, string> = {
-  off: "Not downloaded yet",
+  off: "Not downloaded. Conversation is off until it is.",
   loading: "Downloading",
   ready: "Downloaded and ready",
-  error: "It didn't load here. The fixed guidance still works.",
-  unsupported: "This browser can't run it. WebGPU isn't available.",
+  error: "It didn't load here, so conversation is off.",
+  unsupported: "This browser can't run it. WebGPU isn't available, so conversation is off.",
 };
 
 export function YourData({ status, progress, onToggleModel, onExport, onClear }: {
@@ -51,7 +51,7 @@ export function YourData({ status, progress, onToggleModel, onExport, onClear }:
   onClear: () => void;
 }) {
   const [armed, setArmed] = useState(false);
-  const buttonLabel = status === "ready" ? "Remove the model" : status === "loading" ? "Downloading" : status === "error" ? "Try again" : "Download the model";
+  const buttonLabel = status === "ready" ? "Delete the download" : status === "loading" ? "Downloading" : status === "error" ? "Try again" : "Download the model";
 
   return (
     <div className="screen-scroll">
@@ -73,7 +73,7 @@ export function YourData({ status, progress, onToggleModel, onExport, onClear }:
           <div className="data-card-top">
             <div className="data-text" style={{ maxWidth: 520 }}>
               <span className="data-title">The local AI coach</span>
-              <span className="data-sub">Qwen2.5 0.5B, quantized, running in your browser through WebGPU. About a 1 GB download, once per browser profile. The app works fine without it, you just get the fixed guidance instead of open conversation.</span>
+              <span className="data-sub">Qwen2.5 0.5B, quantized, running in your browser through WebGPU. About a 1 GB download, once per browser profile. Conversation needs it, so there&apos;s no coach until it&apos;s here. Your three actions, the seven-day plan and the ideas all work without it. Deleting the download frees the disk space and turns conversation back off.</span>
             </div>
             <button type="button" className="btn btn-secondary" onClick={onToggleModel} disabled={status === "loading" || status === "unsupported"}>{buttonLabel}</button>
           </div>

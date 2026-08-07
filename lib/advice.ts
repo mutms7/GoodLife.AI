@@ -155,96 +155,10 @@ export function getFirstWeekPlan(profile: Profile): WeekStep[] {
   ];
 }
 
-function hasAny(message: string, words: string[]) {
-  return words.some((word) => message.includes(word));
-}
-
-export type AdviceDomain = "crisis" | "money" | "health" | "housing" | "habits" | "relationships" | "meaning" | "general";
-
-export function classifyMessage(message: string): AdviceDomain {
-  const text = message.trim().toLowerCase();
-  if (hasAny(text, ["suicide", "kill myself", "self harm", "self-harm", "hurt myself", "overdose", "overdosed", "end my life", "don't want to live", "i want to die", "wish i were dead", "no reason to live", "can't go on", "cannot go on"])) return "crisis";
-  if (hasAny(text, ["money", "budget", "invest", "saving", "savings", "debt", "etf", "retire", "tax", "fee", "payday", "broke"])) return "money";
-  if (hasAny(text, ["rent", "buy", "house", "housing", "mortgage", "home"])) return "housing";
-  if (hasAny(text, ["sleep", "tired", "energy", "rest", "doctor", "symptom", "exercise", "health", "outside", "outdoors", "nature", "walk", "hike", "daylight", "bedtime"])) return "health";
-  if (hasAny(text, ["habit", "routine", "motivation", "procrastinat", "cook", "cooking", "meal", "recipe", "food", "skip", "skipped", "missed", "behind", "quit", "too much", "overwhelm"])) return "habits";
-  if (hasAny(text, ["friend", "lonely", "social", "relationship", "people"])) return "relationships";
-  if (hasAny(text, ["meaning", "purpose", "stuck", "happy", "anxious", "stress", "meditat", "mindful", "breath", "calm down"])) return "meaning";
-  return "general";
-}
-
-/** Money, health and housing never reach the model, and crisis language never
- *  gets near it. Everything else can, when the model is loaded. */
-export function isModelSafe(domain: AdviceDomain) {
-  return domain === "general" || domain === "habits" || domain === "relationships" || domain === "meaning";
-}
-
-export type ReplySource = "model" | "fixed" | "model-off" | "model-failed";
-
-/** The note under a coach reply. It is a designed element, not debug output,
- *  so every reply carries one. */
-export function noteFor(domain: AdviceDomain, source: ReplySource): string {
-  if (domain === "crisis") return "Crisis language, so this never goes to the model.";
-  if (source === "model") return "Answered by the local model, running on your device.";
-  if (source === "model-off") return "The local model isn't running, so this is the fixed guidance.";
-  if (source === "model-failed") return "The model didn't finish that one, so this is the fixed guidance.";
-  if (domain === "money") return "Money question, so this comes from the fixed guidance, not the model.";
-  if (domain === "housing") return "Housing question, so this comes from the fixed guidance, not the model.";
-  if (domain === "health") return "Health question, so this comes from the fixed guidance, not the model.";
-  return "Fixed guidance, written ahead of time rather than generated.";
-}
-
-export function coachReply(message: string, profile: Profile): string {
-  const text = message.trim().toLowerCase();
-  if (!text) return "Tell me what today actually looks like. Energy, money, sleep, people, or something else entirely.";
-
-  const domain = classifyMessage(message);
-
-  if (domain === "crisis") {
-    return "I'm not the right help for this, and I don't want to guess. Please contact your local emergency number now, or call or text 988 in Canada and the US for confidential crisis support. If there's someone nearby you trust, tell them tonight. You deserve a person beside you, not an app.";
-  }
-
-  if (domain === "money") {
-    const investing = hasAny(text, ["invest", "etf", "stock", "market", "retire", "fund"])
-      ? " For investing, the boring answer is a low-cost diversified fund and a long time horizon. Check the fees, the account rules and how much of a drop you could sit through, because there are no guarantees."
-      : "";
-    return `Start with a buffer you can actually reach, not a number that sounds impressive. A few hundred dollars in a plain savings account keeps a flat tire from turning into a credit card balance. After that, whatever is charging you the most interest is the next thing to go.${investing} This is general education, not advice about your situation.`;
-  }
-
-  if (domain === "housing") {
-    return "Renting buys flexibility and owning buys control, and both cost more than the sticker. Put the likely five-year total side by side, interest, taxes, insurance, maintenance and what you'd give up elsewhere, then compare that against the life you actually want in those five years. Neither one is automatically the grown-up choice.";
-  }
-
-  if (domain === "health") {
-    if (hasAny(text, ["outside", "outdoors", "nature", "walk", "hike", "daylight"])) {
-      return "Make outside a cue, not a project. Step out for five minutes after your first drink of the day, or between two tasks, and let the pace be easy. Early light helps your sleep more than anything you'll try at 11pm.";
-    }
-    return "Wake time is the easier end to hold, and it usually pulls bedtime along with it. Pick one time you can keep within 30 minutes for seven days, weekends included, and leave the evening alone for now. If the tiredness sticks around, that's worth a real clinician, not me.";
-  }
-
-  if (hasAny(text, ["skip", "skipped", "missed", "behind", "quit", "failed", "too much", "overwhelm"])) {
-    return "One miss is just a Tuesday. Two in a row is how a habit quietly ends, so the only rule is don't miss twice. Do the smallest version of it today and call that done.";
-  }
-
-  if (domain === "habits") {
-    if (hasAny(text, ["cook", "cooking", "meal", "recipe", "food"])) {
-      return "Pick one meal you can make without thinking and cook it twice this week. Keep the ingredients where you can see them. Most of the effort in cooking is the deciding, so take that part out first.";
-    }
-    return "Try an identity-sized habit: I'm someone who takes the next small step. Give it a cue you already have, make it two minutes long, and keep the useful option within reach. If you miss, begin again tomorrow.";
-  }
-
-  if (domain === "relationships") {
-    return "Connection grows out of specific, low-pressure repetitions. Send one honest invitation with a real day in it, ask one more question than feels natural, and put the walk or the call somewhere it repeats. Showing up beats performing.";
-  }
-
-  if (domain === "meaning") {
-    return "Notice the feeling without turning it into a verdict about you, then pick a two-minute thing that lines up with what you care about. Meaning usually shows up after you start, not before. If this has been heavy for a while, a qualified professional is a better place to take it than an app.";
-  }
-
-  const anchor = profile.goodDay.trim();
-  const pointer = anchor ? ` You told me a good day looks like this: "${anchor}." I'll keep pointing back to it.` : "";
-  return `Say a bit more about what today actually looks like. I'd rather hand you one small thing you'll do than five you won't.${pointer}`;
-}
+/* Routing used to live here: a keyword list deciding both the topic and whether
+ * the model was allowed to answer. Both jobs moved. The topic now comes from the
+ * model reading playbook.md, and the model answers everything except the one
+ * topic that declares a fixed reply. See lib/playbook.ts. */
 
 export function normalizeCoachText(text: string): string {
   return text

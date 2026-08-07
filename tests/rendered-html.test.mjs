@@ -20,8 +20,11 @@ test("server-renders the chat-first marketing page", async () => {
   const html = await response.text();
   assert.match(html, /<title>GoodLife\.AI \| a coach for the life you&#x27;re actually living<\/title>/i);
   assert.match(html, /A coach for the life you(?:&#x27;|')re actually living/);
-  assert.match(html, /Try the coach right here/);
+  assert.match(html, /See the shape of an answer/);
   assert.match(html, /Your answers never leave the browser you typed them into/);
+  // The page has to say the download is required, not optional.
+  assert.match(html, /You download the coach/);
+  assert.match(html, /can(?:&#x27;|')t start until the download finishes/);
   assert.match(html, /manifest\.webmanifest/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton|codex-preview/i);
 });
@@ -45,8 +48,39 @@ test("the product source keeps the local-first pieces", async () => {
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
   assert.match(storage, /localStorage/);
-  assert.match(app, /coachReply/);
   assert.match(app, /streamReply/);
   assert.match(llm, /@mlc-ai\/web-llm/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+});
+
+test("the chat is gated on the model, with no fixed-guidance chat behind it", async () => {
+  const [app, llm] = await Promise.all([
+    readFile(new URL("../app/app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/llm.ts", import.meta.url), "utf8"),
+    ]);
+  // The composer only renders once the model is ready; otherwise it's the gate.
+  assert.match(app, /status === "ready"\s*\n?\s*\?\s*<Composer/);
+  assert.match(app, /<ModelGate/);
+  // The old bypass is gone: no reply path that answers without the model.
+  assert.doesNotMatch(app, /coachReply|isModelSafe|guidanceFor/);
+  // Every generation is grounded and fenced.
+  assert.match(llm, /buildSystemPrompt/);
+  assert.match(llm, /looksLikeLeak/);
+  assert.match(llm, /notes: request\.notes/);
+});
+
+test("the topic comes from the model reading the playbook, not from keywords", async () => {
+  const [app, llm, advice] = await Promise.all([
+    readFile(new URL("../app/app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/llm.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/advice.ts", import.meta.url), "utf8"),
+  ]);
+  // A model pass picks the topic before the answer is generated.
+  assert.match(app, /await chooseTopic\(message\)/);
+  assert.match(llm, /buildTopicSystemPrompt/);
+  assert.match(llm, /topicMenu\(PLAYBOOK\)/);
+  // The old keyword table is gone from the advice module entirely.
+  assert.doesNotMatch(advice, /classifyMessage|PATTERNS|DOMAIN_NOTES|MUST_APPEND/);
+  // Only the crisis floor still matches phrases, and it comes from the file.
+  assert.match(llm, /matchSafetyNet\(PLAYBOOK, message\)/);
 });

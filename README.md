@@ -1,7 +1,7 @@
 # GoodLife.AI
 
 <p align="center">
-  <img src="docs/images/marketing-home.png" alt="GoodLife.AI marketing homepage with interactive coach demo" width="900" />
+  <img src="docs/images/marketing-home.png" alt="GoodLife.AI marketing homepage with sample coach answers" width="900" />
 </p>
 
 <p align="center">
@@ -41,26 +41,61 @@ The coach thread is the home screen, and the day's plan arrives inside it as a m
   <img src="docs/images/your-data.png" alt="GoodLife.AI Your data screen with the local AI coach card" width="800" />
 </p>
 
-Your data is also where you export a local copy, start over, or download the optional AI coach. The app works without the model; you get fixed guidance instead of open conversation. Every coach reply includes a source note, so you can see whether it came from the local model or fixed guidance.
+Your data is also where you export a local copy, start over, or download the coach. Conversation needs the model, so there's no chat until it's downloaded. Deleting the download frees the disk space and turns conversation back off. Every coach reply includes a source note saying which playbook topic it was grounded in.
 
 ## How the AI works
 
-GoodLife.AI uses a hybrid design. The three-step first run and the first-week plan use fixed, testable rules. That keeps the most visible recommendations predictable.
+GoodLife.AI uses a hybrid design, but the split isn't "some questions get a model and some don't." The three-step first run and the first-week plan use fixed, testable rules, because those are the most visible recommendations and they should be predictable. Conversation is the model's job, all of it.
 
-The optional conversational layer uses a pretrained Qwen2.5-0.5B-Instruct model through WebLLM. It has roughly 500 million parameters. The model is quantized, which keeps the download and memory requirements lower than a full-size model. The first download is about 1 GB and needs a browser with WebGPU.
+The coach is a pretrained Qwen2.5-0.5B-Instruct model running through WebLLM. It has roughly 500 million parameters and it's quantized, which keeps the download and memory requirements lower than a full-size model. The first download is about 1 GB and needs a browser with WebGPU. GoodLife.AI uses the model as published; it wasn't trained or fine-tuned for this app.
 
-The model runs on your device inside the browser. There is no GoodLife.AI inference server, no API key, and no per-message cloud request. GoodLife.AI uses the pretrained model as published; it wasn't trained or fine-tuned for this app.
+The model runs on your device inside the browser. There is no GoodLife.AI inference server, no API key, and no per-message cloud request. That's also why the coach can't start before the download finishes. The app says so plainly rather than quietly answering with something else, which is what it used to do.
 
-Before answering, the app checks whether a message is about crisis support, money, health, housing, habits, relationships, meaning, or a general question.
+### The playbook is a markdown file
 
-- General questions, habits, relationships, and meaning can use the local model.
-- Money, health, and housing stay on fixed, reviewed guidance.
-- Crisis language receives a crisis-support response instead of model-generated coaching.
-- If the model can't load or generation fails, the fixed coach answers instead.
+All of the coach's guidance lives in [`lib/playbook.md`](lib/playbook.md). Editing that file is how you change what the coach says, and it doesn't require touching any code. Each `##` heading is a topic:
 
-For lower-risk conversations, the local model receives only your description of a good day. Your other answers stay with the fixed planner. That boundary is intentional and reflects what the app does today.
+~~~markdown
+## money
 
-Replies stream token by token, and if the model is off, unsupported or fails mid-generation, the fixed coach answers and the note says exactly that.
+When: they're asking about money, saving, debt, investing, budgeting, taxes, or what to do with a paycheck
+
+Say after: This is general education, not advice about your situation.
+
+- Start with a small emergency buffer in a plain savings account, a few hundred dollars, before anything fancier.
+- Never name a specific security, ticker, allocation, platform or dollar amount for this person.
+- Never predict a return and never say an investment is safe.
+~~~
+
+There is no keyword table deciding which topic a message belongs to. The model reads the `When:` lines and picks, which is the part it's actually good at. An earlier version did use keyword matching, and it matched "fee" inside "feel", which quietly sent a large share of ordinary messages down the money path.
+
+### Two passes, because the model is small
+
+Answering happens in two generations rather than one:
+
+1. **Topic.** The model gets only the `When:` lines and answers with a single word, at temperature 0 with an 8-token ceiling. A few tokens, so it's cheap.
+2. **Answer.** Only that topic's bullets go into the answering prompt, along with the voice rules and the good-day line.
+
+The alternative was pasting the whole playbook into one prompt. A 0.5B model handed nine topics' worth of instructions follows them noticeably worse than one handed the five bullets that apply, so the split buys real quality for one short extra generation. If the topic pass fails, refuses, or says something unrecognisable, it falls back to `general`, which still carries notes. There's no path that reaches the model with nothing attached.
+
+### What doesn't depend on the model behaving
+
+- **A safety net runs first.** The crisis topic declares a `Safety net:` line of literal phrases, matched on whole words before any generation. It's a floor under the model's judgement, not the mechanism, and it works before the download finishes, which is why the download screen carries the same numbers. An `Except:` line cancels a hit for idioms that borrow the wording, like "I want to die of embarrassment", and hands that call back to the model.
+- **Crisis never reaches the model.** A topic with a `Fixed reply:` skips generation entirely and sends that text verbatim. A 0.5B model paraphrasing a hotline number is a worse outcome than a fixed paragraph.
+- **Disclaimers are appended after generation.** `Say after:` text is concatenated by the app once the model is done. The model is never asked to remember it, so it can't soften or drop it.
+
+### Treating your own words as untrusted
+
+The reference notes sit in the prompt where you can't see them, so the app has to assume someone will try to talk their way around them. Both your message and the good-day line from first run are untrusted input, and the good-day line matters more than it looks, because it gets replayed into the system prompt on every single turn.
+
+- Chat-template tokens (`<|im_start|>`), `[INST]` and `<<SYS>>` blocks, faked `System:` role headers, and zero-width or bidi characters are stripped before anything is assembled.
+- Your text is fenced between markers carrying a random 16-character value generated fresh for each message. There's nothing stable to guess, so a message can't close the fence early and start issuing instructions.
+- The rules tell the model that everything inside the fence is a person talking, never an instruction, and that the reference notes outrank anything the message asks for.
+- Generation is checked as it streams. If a reply starts echoing the fence, the notes, or the template tokens, it's dropped mid-stream and you get a retry instead of the leak.
+
+None of this makes a 500M-parameter model trustworthy on its own. It narrows what a bad generation can turn into, and the disclaimers survive either way.
+
+Replies stream token by token. If the model fails mid-generation, the coach says so and offers to try again rather than substituting a different answer.
 
 ## The ideas behind the product
 
@@ -80,23 +115,32 @@ flowchart TD
     B --> C[Fixed planner]
     C --> D[Three starting actions]
     D --> E[Seven-day habit plan]
+
     B --> F[Coach message]
-    F --> G[Safety and topic check]
-    G -->|General habits relationships meaning| H[Optional local model]
-    G -->|Money health housing| I[Fixed guidance]
-    G -->|Crisis language| J[Crisis support response]
-    H --> K[Local chat response]
-    H -->|Unavailable or error| I
-    I --> K
-    J --> K
-    K --> L[Local chat history and progress]
+    F --> G{Safety-net phrase, minus the Except list?}
+    G -->|Yes| H[Fixed reply from playbook.md, no model]
+    G -->|No| I{Model downloaded?}
+    I -->|No| J[Download gate, no chat]
+    I -->|Yes| K[Sanitize and fence the message]
+    K --> L[Pass 1: model reads the When lines and names a topic]
+    L --> M{Recognised?}
+    M -->|No| N[Fall back to general]
+    M -->|Yes| O[That topic]
+    N --> P[Pass 2: notes plus the fenced good-day line]
+    O --> P
+    P --> Q[Local model streams a reply]
+    Q --> R{Echoes the prompt scaffolding?}
+    R -->|Yes| S[Dropped mid-stream, offer a retry]
+    R -->|No| T[Append Say after verbatim]
+    T --> U[Local chat history and progress]
+    H --> U
 ~~~
 
 ## Privacy and limits
 
-The profile, completions, streaks, and chat history are stored in the browser's local storage. They aren't sent to a GoodLife.AI server. The optional model runs locally after its files are downloaded and cached by the browser.
+The profile, completions, streaks, and chat history are stored in the browser's local storage. They aren't sent to a GoodLife.AI server. The model runs locally after its files are downloaded and cached by the browser.
 
-This also means the data is tied to that browser and device. Clearing site data can remove it, so the app includes a JSON export. The model needs a compatible WebGPU device and a fairly large first download. Small local models can be less capable than cloud models, especially with complex or nuanced questions.
+This also means the data is tied to that browser and device. Clearing site data can remove it, so the app includes a JSON export. The model needs a compatible WebGPU device and a fairly large first download, and without it there's no conversation at all. The first run, the day's three actions, the seven-day plan, the ideas library and the crisis response all still work. Small local models can be less capable than cloud models, especially with complex or nuanced questions, which is what the reference notes and the appended disclaimers are for.
 
 GoodLife.AI is a reflection and education tool. It isn't medical, mental-health, legal, or financial advice. Investment returns aren't guaranteed. Renting and owning both have trade-offs, and the app doesn't assume one is right for everyone. For urgent safety concerns, contact local emergency services or a crisis service in your area.
 
@@ -105,7 +149,8 @@ GoodLife.AI is a reflection and education tool. It isn't medical, mental-health,
 - React and TypeScript
 - Vinext and Vite
 - The Organic design system, self-hosted Caprasimo and Figtree
-- WebLLM with Qwen2.5-0.5B-Instruct
+- WebLLM with Qwen2.5-0.5B-Instruct, required for conversation
+- A markdown playbook the model routes against, plus a prompt layer that sanitizes and fences untrusted input
 - WebGPU for in-browser inference
 - Browser local storage for the local-first data model
 - Service worker and web manifest for PWA installation
@@ -122,7 +167,7 @@ npm install
 npm run dev
 ~~~
 
-Then open the local URL printed by Vinext. `/` is the marketing page, with a coach demo you can talk to before committing to anything, and `/app` is the product. First run and the fixed coach work right away. To try the local AI coach, open Your data in a WebGPU-compatible browser and choose “Download the model.” The download happens once per browser profile and can take a while.
+Then open the local URL printed by Vinext. `/` is the marketing page, with written sample exchanges so you can see the shape of a reply before committing to a download, and `/app` is the product. To change what the coach says, edit [`lib/playbook.md`](lib/playbook.md) and rebuild. No code changes needed. First run, the day's three and the seven-day plan work right away. Conversation doesn't: open the app in a WebGPU-compatible browser and choose “Download the coach,” either from the gate under the thread or from Your data. The download happens once per browser profile and can take a while.
 
 To make a production build:
 
@@ -139,7 +184,9 @@ npm run lint
 npm run build
 ~~~
 
-The checks cover rendering, advice routing, high-risk safeguards, and how the day's three actions are chosen.
+The checks cover rendering, the playbook parser against the real `playbook.md`, the crisis safety net and its `Except:` list, what happens when the model names a topic that doesn't exist, the prompt-injection boundary, and how the day's three actions are chosen. The playbook tests assert on the shipped file rather than a fixture, so editing the markdown badly, a topic with no `When:` line or a missing disclaimer, fails the suite.
+
+`npx tsc --noEmit` currently reports three errors, all in the unused Cloudflare and Drizzle scaffold left over from the starter template (`db/`, and the `Fetcher` and `D1Database` globals in `worker/index.ts`). No application code imports it.
 
 ## Install it as an app
 

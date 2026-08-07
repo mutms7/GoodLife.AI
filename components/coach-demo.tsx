@@ -2,20 +2,16 @@
 
 import { useState } from "react";
 import { Dandelion, Icon } from "@/components/marks";
-import { classifyMessage, coachReply, emptyProfile, isModelSafe, noteFor } from "@/lib/advice";
+import { DEMO_DEFERRAL, DEMO_EXCHANGES } from "@/lib/demo";
 import type { Message } from "@/lib/storage";
 
-const OPENING: Message = { isUser: false, text: "Tell me what's been getting in the way lately. I'll keep my answer small enough to try today." };
-const SUGGESTIONS = ["Bedtime keeps slipping", "Where do I start with savings?"];
+const OPENING: Message = { isUser: false, text: "Tell me what's been getting in the way lately. Pick one and I'll show you the shape of the answer." };
 
-/** The demo answers for real, using the same classifier and the same fixed
- *  guidance the app uses. It never loads the model, and the note says so. */
+/** Clicking a sample shows what that exchange looks like. Anything typed by
+ *  hand gets the truth: this page has no model, so it can't answer. */
 function reply(text: string): Message {
-  const domain = classifyMessage(text);
-  const note = isModelSafe(domain)
-    ? "Fixed guidance here. In the app this one can go to the local model."
-    : noteFor(domain, "fixed");
-  return { isUser: false, text: coachReply(text, emptyProfile), note };
+  const match = DEMO_EXCHANGES.find((exchange) => exchange.ask.toLowerCase() === text.trim().toLowerCase());
+  return { isUser: false, ...(match ?? DEMO_DEFERRAL) };
 }
 
 export function CoachDemo() {
@@ -32,8 +28,8 @@ export function CoachDemo() {
   return (
     <div className="demo">
       <div className="demo-head">
-        <strong>Try the coach right here</strong>
-        <span><i />nothing is being uploaded</span>
+        <strong>See the shape of an answer</strong>
+        <span><i />written samples, nothing uploaded</span>
       </div>
       <div className="demo-body">
         <div className="demo-thread">
@@ -50,7 +46,7 @@ export function CoachDemo() {
           )))}
         </div>
         <div className="demo-suggestions">
-          {SUGGESTIONS.map((text) => <button type="button" key={text} onClick={() => send(text)}>{text}</button>)}
+          {DEMO_EXCHANGES.map((exchange) => <button type="button" key={exchange.ask} onClick={() => send(exchange.ask)}>{exchange.ask}</button>)}
         </div>
         <div className="demo-composer">
           <input

@@ -5,15 +5,15 @@ import { Dandelion } from "@/components/marks";
 const STEPS = [
   { title: "You describe a good day", body: "The ordinary kind, not the holiday version. Then you pick up to three things that matter right now and say where you're stuck." },
   { title: "You get three small steps", body: "Ranked from your answers by plain, testable logic. No black box deciding whether you should build an emergency fund." },
-  { title: "You come back tomorrow", body: "A seven-day sequence, a streak that counts returning rather than perfection, and a coach you can argue with when the plan doesn't fit." },
+  { title: "You download the coach", body: "Conversation runs a small model on your own hardware, so it starts with a one-time download rather than an account. No download, no chat, and the app says so instead of quietly answering with something else." },
 ];
 
 const ROUTING = [
-  { label: "Habits", value: "Open conversation with the local model.", fixed: false },
-  { label: "Meaning", value: "Open conversation with the local model.", fixed: false },
-  { label: "Money", value: "Fixed guidance. General education, never a recommendation.", fixed: true },
-  { label: "Health", value: "Fixed guidance, with a nudge toward a real professional.", fixed: true },
-  { label: "Crisis", value: "A crisis-support response. The model is not involved.", fixed: true },
+  { label: "Habits", value: "The model answers, carrying the notes on cues, two-minute versions and never missing twice.", fixed: false },
+  { label: "Money", value: "The model answers, held to buffer-then-interest and general education. Never a specific investment or amount.", fixed: false },
+  { label: "Health", value: "The model answers, held to wake-time basics. It can't diagnose or name a medication, and it points at a clinician.", fixed: false },
+  { label: "Heavier days", value: "The model answers, told not to diagnose or minimise. A pointer to real support is appended afterwards, not left to the model.", fixed: false },
+  { label: "Crisis", value: "A fixed response, matched on literal phrases before anything runs. The model is not involved, and it works before the download.", fixed: true },
 ];
 
 export default function Site() {
@@ -34,7 +34,7 @@ export default function Site() {
 
       <section className="site-hero">
         <div className="site-hero-copy">
-          <span className="site-eyebrow">Runs on your device. No account.</span>
+          <span className="site-eyebrow">Runs on your device. No account, no server.</span>
           <h1>A coach for the life you&apos;re actually living.</h1>
           <p>You don&apos;t need another list of everything that&apos;s wrong. You need to know what to do first, and you need it small enough to do on a normal Tuesday. Answer a few honest questions and I&apos;ll give you three.</p>
           <div className="site-cta">
@@ -51,7 +51,7 @@ export default function Site() {
       </section>
 
       <section className="site-band" id="how-it-works">
-        <h2>Three questions in, and you have something to do today.</h2>
+        <h2>Three questions in, and you have something to do today. Then you decide about the coach.</h2>
         <div className="site-steps">
           {STEPS.map((step, index) => (
             <div className="site-step" key={step.title}>
@@ -67,7 +67,7 @@ export default function Site() {
         <div className="site-privacy-copy">
           <span className="site-eyebrow terracotta">Privacy, the boring literal kind</span>
           <h2>Your answers never leave the browser you typed them into.</h2>
-          <p>There&apos;s no inference server and no API key. If you turn on the AI coach, the model downloads once and runs on your own hardware. That&apos;s also the honest limit: a small local model is less capable than a big cloud one, and money, health and housing questions stay on fixed guidance rather than going to the model at all.</p>
+          <p>There&apos;s no inference server and no API key. The coach downloads once and runs on your own hardware, which is why it can&apos;t start until the download finishes. That&apos;s the honest limit: a small local model is less capable than a big cloud one. So the guidance lives in a plain markdown playbook the model routes against, your words are fenced off from the instructions so they can&apos;t rewrite them, and the disclaimers get added after the model is done rather than asked of it.</p>
           <div className="site-chips">
             <span>Local storage only</span>
             <span>JSON export</span>

@@ -5,25 +5,24 @@ import { Icon } from "@/components/marks";
 import { FirstRun } from "@/components/app/first-run";
 import { MobileHeader, Rail, TabBar, type Screen } from "@/components/app/rail";
 import { Ideas, Week, YourData } from "@/components/app/screens";
-import { Composer, CoachMessage, MessageList, PlanCard, useScrollToLatest } from "@/components/app/thread";
-import { classifyMessage, coachReply, emptyProfile, getDailyActions, isModelSafe, noteFor, type Profile } from "@/lib/advice";
-import { MODEL_LABEL, loadModel, streamReply, unloadModel, webgpuSupported, type ModelStatus } from "@/lib/llm";
+import { Composer, CoachMessage, MessageList, ModelGate, PlanCard, useScrollToLatest } from "@/components/app/thread";
+import { emptyProfile, getDailyActions, type Profile } from "@/lib/advice";
+import { noteFor } from "@/lib/playbook";
+import { MODEL_LABEL, chooseTopic, deleteModelCache, loadModel, safetyNetTopic, streamReply, unloadModel, webgpuSupported, type ModelStatus } from "@/lib/llm";
 import { clear, dateKey, emptyData, exportFile, load, recentDays, save, streakFrom, type Message, type SavedData } from "@/lib/storage";
 
 const HASH_SCREENS: Record<string, Screen> = { "#ideas": "ideas", "#data": "data", "#week": "week", "#first-run": "onboard" };
+
+const FAILED: Message = {
+  isUser: false,
+  text: "That one didn't come out right, so I'd rather not show you half an answer.",
+  retryable: true,
+};
 
 function greeting(hour = new Date().getHours()) {
   if (hour < 12) return "Morning";
   if (hour < 18) return "Afternoon";
   return "Evening";
-}
-
-function statusLine(status: ModelStatus, progress: number) {
-  if (status === "ready") return `Local model · ${MODEL_LABEL}`;
-  if (status === "loading") return `Loading the local model · ${Math.round(progress * 100)}%`;
-  if (status === "error") return "Fixed guidance · the model didn't load";
-  if (status === "unsupported") return "Fixed guidance · this browser has no WebGPU";
-  return "Fixed guidance · the local model is off";
 }
 
 export default function App() {
@@ -34,6 +33,7 @@ export default function App() {
   const [status, setStatus] = useState<ModelStatus>("off");
   const [progress, setProgress] = useState(0);
   const [pending, setPending] = useState<Message | null>(null);
+  const [lastAsk, setLastAsk] = useState("");
 
   const startModel = useCallback(async () => {
     if (!webgpuSupported()) {
@@ -85,39 +85,70 @@ export default function App() {
     return { ...current, days: { ...current.days, [today]: next } };
   });
 
-  const send = async (text: string) => {
+  /** `echo` replays a message that already sits in the thread, which is what
+   *  the retry button needs. Everything else appends the person's turn first. */
+  const send = async (text: string, echo = false) => {
     const message = text.trim();
     if (!message || pending) return;
-    setDraft("");
-    push({ isUser: true, text: message });
+    if (!echo) {
+      setDraft("");
+      push({ isUser: true, text: message });
+    }
 
-    const domain = classifyMessage(message);
-    const fixed = coachReply(message, profile);
-    if (!isModelSafe(domain)) {
-      push({ isUser: false, text: fixed, note: noteFor(domain, "fixed") });
+    // The literal-phrase floor from the playbook. No model, so it also answers
+    // before the download finishes.
+    const net = safetyNetTopic(message);
+    if (net?.fixedReply) {
+      push({ isUser: false, text: net.fixedReply, note: noteFor(net, "crisis") });
       return;
     }
+
     if (status !== "ready") {
-      push({ isUser: false, text: fixed, note: noteFor(domain, "model-off") });
+      push({ isUser: false, text: "I can't answer that one yet. The coach runs on your device, so the model has to finish downloading first.", note: noteFor(undefined, "model-off") });
       return;
     }
 
-    const note = noteFor(domain, "model");
-    setPending({ isUser: false, text: "", note });
+    setLastAsk(message);
+    setPending({ isUser: false, text: "", note: undefined });
     try {
-      const answer = await streamReply(profile.goodDay, message, (partial) => setPending({ isUser: false, text: partial, note }));
+      // First pass: the model reads the playbook's descriptions and names the
+      // topic. Only that topic's notes go into the answering prompt.
+      const topic = await chooseTopic(message);
+      if (topic.fixedReply) {
+        setPending(null);
+        push({ isUser: false, text: topic.fixedReply, note: noteFor(topic, "crisis") });
+        return;
+      }
+
+      const note = noteFor(topic, "model");
+      setPending({ isUser: false, text: "", note });
+      const answer = await streamReply(
+        { goodDay: profile.goodDay, message, notes: topic.notes },
+        (partial) => setPending({ isUser: false, text: partial, note }),
+      );
       setPending(null);
-      if (answer) push({ isUser: false, text: answer, note });
-      else push({ isUser: false, text: fixed, note: noteFor(domain, "model-failed") });
+      if (!answer) {
+        push({ ...FAILED, note: noteFor(topic, "model-failed") });
+        return;
+      }
+      // The disclaimer is appended here rather than asked for in the prompt, so
+      // a small model can't drop it or reword it into something softer.
+      push({ isUser: false, text: topic.sayAfter ? `${answer} ${topic.sayAfter}` : answer, note });
     } catch {
       setPending(null);
-      push({ isUser: false, text: fixed, note: noteFor(domain, "model-failed") });
+      push({ ...FAILED, note: noteFor(undefined, "model-failed") });
     }
+  };
+
+  const retry = () => {
+    if (!lastAsk) return;
+    setData((current) => ({ ...current, msgs: current.msgs.filter((msg) => !msg.retryable) }));
+    void send(lastAsk, true);
   };
 
   const toggleModel = () => {
     if (status === "ready") {
-      void unloadModel();
+      void deleteModelCache();
       setStatus("off");
       setData((current) => ({ ...current, modelOn: false }));
       return;
@@ -161,12 +192,14 @@ export default function App() {
               <span className="screen-avatar" aria-hidden="true"><Icon name="user" size={15} /></span>
             </div>
             <div className="thread" ref={threadRef}>
-              <CoachMessage text={`${greeting()}. Here's what I'd try today. All three are small on purpose, and you can swap any of them.`} />
-              <PlanCard actions={actions} done={doneToday} onToggle={toggleAction} onAsk={(text) => void send(text)} />
-              <MessageList msgs={data.msgs} />
+              <CoachMessage text={`${greeting()}. Here's what I'd try today. All three are small on purpose, and you can check off whichever ones you actually do.`} />
+              <PlanCard actions={actions} done={doneToday} onToggle={toggleAction} onAsk={(text) => void send(text)} canAsk={status === "ready"} />
+              <MessageList msgs={data.msgs} onRetry={retry} />
               {pending && <CoachMessage text={pending.text} note={pending.text ? pending.note : undefined} typing />}
             </div>
-            <Composer draft={draft} setDraft={setDraft} onSend={() => void send(draft)} status={statusLine(status, progress)} busy={Boolean(pending)} />
+            {status === "ready"
+              ? <Composer draft={draft} setDraft={setDraft} onSend={() => void send(draft)} status={`Local model · ${MODEL_LABEL}`} busy={Boolean(pending)} />
+              : <ModelGate status={status} progress={progress} onStart={() => void startModel()} />}
           </div>
         )}
 
