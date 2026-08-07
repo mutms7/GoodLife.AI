@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MAX_USER_CHARS, buildSystemPrompt, buildUserPrompt, looksLikeLeak, makeFence, sanitizeUserText } from "../lib/prompt.ts";
+import { MAX_USER_CHARS, buildSystemPrompt, buildUserPrompt, looksLikeLeak, makeFence, prescribesMedication, sanitizeUserText } from "../lib/prompt.ts";
 
 const NOTES = ["Never name a specific security.", "One small step, then stop."];
 
@@ -63,6 +63,31 @@ test("a reply that echoes the scaffolding is treated as a failure", () => {
   assert.equal(looksLikeLeak("###MSG-whatever###", fence), true);
   assert.equal(looksLikeLeak("<|im_start|>system", fence), true);
   assert.equal(looksLikeLeak("Try a ten minute walk before noon.", fence), false);
+});
+
+test("a reply that puts someone on a prescription is stopped", () => {
+  // The real one. The model recommended a sleeping pill and invented the
+  // generic name for it, with the rule against that in its own prompt.
+  assert.equal(prescribesMedication("If you're having trouble sleeping, try taking Ambien"), true);
+  assert.equal(prescribesMedication("ask about zolpidem"), true);
+  assert.equal(prescribesMedication("Start with 10 mg before bed"), true);
+  assert.equal(prescribesMedication("about 0.5mg is typical"), true);
+});
+
+test("the floor leaves ordinary coaching alone", () => {
+  // Rule 6 is about not prescribing, not about avoiding the subject, so a
+  // supplement named as general information has to survive.
+  assert.equal(prescribesMedication("Melatonin gets talked about a lot for shifting sleep timing."), false);
+  assert.equal(prescribesMedication("Cut caffeine after 2pm and see what happens."), false);
+  assert.equal(prescribesMedication("Fifteen minutes of daylight before noon."), false);
+  assert.equal(prescribesMedication("Keep the same wake time for 7 days, weekends included."), false);
+  assert.equal(prescribesMedication("If it keeps up, that's a conversation for your doctor."), false);
+});
+
+test("the rules tell the model where the medication line sits", () => {
+  const system = buildSystemPrompt({ goodDay: "", notes: NOTES }, makeFence());
+  assert.match(system, /never give a dose/i);
+  assert.match(system, /conversation with their doctor/i);
 });
 
 test("two messages never share a fence", () => {

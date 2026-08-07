@@ -8,7 +8,7 @@ import { Ideas, Week, YourData } from "@/components/app/screens";
 import { Composer, CoachMessage, MessageList, ModelGate, PlanCard, useScrollToLatest } from "@/components/app/thread";
 import { emptyProfile, getDailyActions, type Profile } from "@/lib/advice";
 import { noteFor } from "@/lib/playbook";
-import { MODEL_LABEL, chooseTopic, deleteModelCache, loadModel, safetyNetTopic, streamReply, unloadModel, webgpuSupported, type ModelStatus } from "@/lib/llm";
+import { MODEL_LABEL, chooseTopic, deleteModelCache, loadModel, streamReply, unloadModel, webgpuSupported, type ModelStatus } from "@/lib/llm";
 import { clear, dateKey, emptyData, exportFile, load, recentDays, save, streakFrom, type Message, type SavedData } from "@/lib/storage";
 
 const HASH_SCREENS: Record<string, Screen> = { "#ideas": "ideas", "#data": "data", "#week": "week", "#first-run": "onboard" };
@@ -16,6 +16,12 @@ const HASH_SCREENS: Record<string, Screen> = { "#ideas": "ideas", "#data": "data
 const FAILED: Message = {
   isUser: false,
   text: "That one didn't come out right, so I'd rather not show you half an answer.",
+  retryable: true,
+};
+
+const BLOCKED: Message = {
+  isUser: false,
+  text: "That answer was heading somewhere I won't go, which is telling you what to take. I can talk about the habit side of it, or a clinician can talk about the rest.",
   retryable: true,
 };
 
@@ -95,14 +101,9 @@ export default function App() {
       push({ isUser: true, text: message });
     }
 
-    // The literal-phrase floor from the playbook. No model, so it also answers
-    // before the download finishes.
-    const net = safetyNetTopic(message);
-    if (net?.fixedReply) {
-      push({ isUser: false, text: net.fixedReply, note: noteFor(net, "crisis") });
-      return;
-    }
-
+    // Crisis routing is the model's job now, and the model has to be here to do
+    // it. That makes this gate the whole safety story before the download
+    // finishes: nothing gets coached at, but nothing gets recognised either.
     if (status !== "ready") {
       push({ isUser: false, text: "I can't answer that one yet. The coach runs on your device, so the model has to finish downloading first.", note: noteFor(undefined, "model-off") });
       return;
@@ -122,18 +123,24 @@ export default function App() {
 
       const note = noteFor(topic, "model");
       setPending({ isUser: false, text: "", note });
-      const answer = await streamReply(
+      const result = await streamReply(
         { goodDay: profile.goodDay, message, notes: topic.notes },
         (partial) => setPending({ isUser: false, text: partial, note }),
       );
       setPending(null);
-      if (!answer) {
-        push({ ...FAILED, note: noteFor(topic, "model-failed") });
+      if (!result?.ok) {
+        // A blocked reply is a different thing from a failed one, and the note
+        // says which, rather than blaming the model for our own guardrail.
+        const blocked = result?.reason === "blocked";
+        push({
+          ...(blocked ? BLOCKED : FAILED),
+          note: noteFor(topic, blocked ? "model-blocked" : "model-failed"),
+        });
         return;
       }
       // The disclaimer is appended here rather than asked for in the prompt, so
       // a small model can't drop it or reword it into something softer.
-      push({ isUser: false, text: topic.sayAfter ? `${answer} ${topic.sayAfter}` : answer, note });
+      push({ isUser: false, text: topic.sayAfter ? `${result.text} ${topic.sayAfter}` : result.text, note });
     } catch {
       setPending(null);
       push({ ...FAILED, note: noteFor(undefined, "model-failed") });

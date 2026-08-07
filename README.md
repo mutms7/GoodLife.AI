@@ -47,7 +47,9 @@ Your data is also where you export a local copy, start over, or download the coa
 
 GoodLife.AI uses a hybrid design, but the split isn't "some questions get a model and some don't." The three-step first run and the first-week plan use fixed, testable rules, because those are the most visible recommendations and they should be predictable. Conversation is the model's job, all of it.
 
-The coach is a pretrained Qwen2.5-0.5B-Instruct model running through WebLLM. It has roughly 500 million parameters and it's quantized, which keeps the download and memory requirements lower than a full-size model. The first download is about 1 GB and needs a browser with WebGPU. GoodLife.AI uses the model as published; it wasn't trained or fine-tuned for this app.
+The coach is a pretrained Qwen2.5-1.5B-Instruct model running through WebLLM. It has roughly 1.5 billion parameters and it's quantized, which keeps the download and memory requirements lower than a full-size model. The first download is about 1.6 GB and needs a browser with WebGPU. GoodLife.AI uses the model as published; it wasn't trained or fine-tuned for this app.
+
+It used to be the 0.5B version of the same model, and the reason it isn't any more is worth writing down. Asked how to build a consistent sleep schedule, that model produced a ten-item listicle when the voice rules asked for a few sentences, and item ten recommended Ambien, whose generic name it got wrong in a way no real drug list contains. The rule against naming a medication was sitting in its own prompt at the time. Half a billion parameters is small enough that a negative instruction is roughly a suggestion, and the words in the rule make the concept more available rather than less. 1.5B costs more download and more time per reply, and it holds a rule.
 
 The model runs on your device inside the browser. There is no GoodLife.AI inference server, no API key, and no per-message cloud request. That's also why the coach can't start before the download finishes. The app says so plainly rather than quietly answering with something else, which is what it used to do.
 
@@ -76,13 +78,19 @@ Answering happens in two generations rather than one:
 1. **Topic.** The model gets only the `When:` lines and answers with a single word, at temperature 0 with an 8-token ceiling. A few tokens, so it's cheap.
 2. **Answer.** Only that topic's bullets go into the answering prompt, along with the voice rules and the good-day line.
 
-The alternative was pasting the whole playbook into one prompt. A 0.5B model handed nine topics' worth of instructions follows them noticeably worse than one handed the five bullets that apply, so the split buys real quality for one short extra generation. If the topic pass fails, refuses, or says something unrecognisable, it falls back to `general`, which still carries notes. There's no path that reaches the model with nothing attached.
+The alternative was pasting the whole playbook into one prompt. A small model handed nine topics' worth of instructions follows them noticeably worse than one handed the five bullets that apply, so the split buys real quality for one short extra generation. If the topic pass fails, refuses, or says something unrecognisable, it falls back to `general`, which still carries notes. There's no path that reaches the model with nothing attached.
 
-### What doesn't depend on the model behaving
+### Where the model is trusted, and where it isn't
 
-- **A safety net runs first.** The crisis topic declares a `Safety net:` line of literal phrases, matched on whole words before any generation. It's a floor under the model's judgement, not the mechanism, and it works before the download finishes, which is why the download screen carries the same numbers. An `Except:` line cancels a hit for idioms that borrow the wording, like "I want to die of embarrassment", and hands that call back to the model.
-- **Crisis never reaches the model.** A topic with a `Fixed reply:` skips generation entirely and sends that text verbatim. A 0.5B model paraphrasing a hotline number is a worse outcome than a fixed paragraph.
+Routing is the model's call, all of it. There is no phrase list under it, not even for crisis. A message about suicide gets there because the model read the crisis topic's `When:` line and named it, the same way a message about rent gets to housing. The topic prompt is told to answer `crisis` whenever a message *could* be about wanting to die, even if another topic also fits and even if it isn't sure, so the one call that matters is biased in the direction where a wrong answer costs a phone number nobody needed.
+
+The honest cost of that: the coach can't recognise a crisis message until the model has finished downloading, and it can't recognise one at all on a device without WebGPU. Before the model is ready, the app doesn't answer, it says it can't. That's a real gap, and it's a deliberate one rather than an oversight.
+
+What still doesn't depend on the model behaving:
+
+- **Crisis text is never generated.** Once a message has been routed to a topic with a `Fixed reply:`, that text is sent verbatim and no answering generation happens. A small model paraphrasing a hotline number is a worse outcome than a fixed paragraph.
 - **Disclaimers are appended after generation.** `Say after:` text is concatenated by the app once the model is done. The model is never asked to remember it, so it can't soften or drop it.
+- **Prescriptions are stopped on the way out.** The prompt tells the model it can name a medication as general information but must never tell this person to take one and must never give a dose. Because that's an instruction and instructions get ignored, `prescribesMedication` also checks the stream as it arrives, against prescription-only drug names and against any number sitting next to a dose unit. A reply that trips it is dropped mid-stream and the thread says why. This exists because an earlier build recommended a sleeping pill whose generic name it had invented, with the rule against exactly that sitting in its own prompt.
 
 ### Treating your own words as untrusted
 
@@ -149,8 +157,8 @@ GoodLife.AI is a reflection and education tool. It isn't medical, mental-health,
 - React and TypeScript
 - Vinext and Vite
 - The Organic design system, self-hosted Caprasimo and Figtree
-- WebLLM with Qwen2.5-0.5B-Instruct, required for conversation
-- A markdown playbook the model routes against, plus a prompt layer that sanitizes and fences untrusted input
+- WebLLM with Qwen2.5-1.5B-Instruct, required for conversation
+- A markdown playbook the model routes against, plus a prompt layer that sanitizes and fences untrusted input, and an output check that stops a reply from prescribing
 - WebGPU for in-browser inference
 - Browser local storage for the local-first data model
 - Service worker and web manifest for PWA installation

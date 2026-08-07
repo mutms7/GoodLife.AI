@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { fallbackTopic, findTopic, matchSafetyNet, noteFor, parsePlaybook, readTopicChoice, topicMenu } from "../lib/playbook.ts";
+import { fallbackTopic, findTopic, noteFor, parsePlaybook, readTopicChoice, topicMenu } from "../lib/playbook.ts";
 
 const source = await readFile(new URL("../lib/playbook.md", import.meta.url), "utf8");
 const topics = parsePlaybook(source);
@@ -39,34 +39,34 @@ test("crisis is the only fixed reply, and it carries the numbers", () => {
   assert.match(fixed[0].fixedReply, /emergency/i);
 });
 
-test("the safety net catches the obvious phrasings without the model", () => {
-  const caught = [
-    "I want to kill myself",
-    "I've been thinking about suicide",
-    "there's no point in living",
-    "kms",
-    "I want to die",
-    "everyone would be better off without me",
-    "I've been thinking about unaliving myself",
-    "I don't want to be here anymore",
-  ];
-  for (const message of caught) {
-    assert.equal(matchSafetyNet(topics, message)?.id, "crisis", message);
+test("nothing in the playbook matches phrases any more", () => {
+  // The floor under the model is gone on purpose. If a `Safety net:` or
+  // `Except:` line ever comes back into the markdown, it is dead text that
+  // reads like a guarantee, which is worse than not having it. Catch it here.
+  assert.doesNotMatch(source, /^\s*(?:safety net|except)\s*:/im);
+  for (const topic of topics) {
+    assert.deepEqual(Object.keys(topic).filter((key) => /safety|except/i.test(key)), []);
   }
 });
 
-test("the safety net does not fire on idioms or on ordinary words", () => {
-  for (const message of ["this commute is killing me", "I feel lonely", "my kmsomething broke", "the cake was to die for"]) {
-    assert.equal(matchSafetyNet(topics, message), undefined, message);
-  }
+test("crisis is reachable only by the model naming it", () => {
+  // Routing is the model's whole job now, so the thing that has to hold is
+  // that a topic answer of "crisis" still lands on the fixed reply.
+  const crisis = findTopic(topics, "crisis");
+  assert.ok(crisis.fixedReply, "crisis still sends fixed text rather than a generation");
+  assert.match(crisis.fixedReply, /988/);
+  assert.equal(readTopicChoice(topics, "crisis").id, "crisis");
+  assert.equal(readTopicChoice(topics, "The topic is crisis.").id, "crisis");
 });
 
-test("Except: cancels a hit and hands the call back to the model", () => {
-  // "want to die" is on the net, but these are idioms, so the model decides.
-  assert.equal(matchSafetyNet(topics, "I want to die of embarrassment when I present"), undefined);
-  assert.equal(matchSafetyNet(topics, "I nearly died laughing"), undefined);
-  // The plain phrasing still trips it.
-  assert.equal(matchSafetyNet(topics, "I want to die")?.id, "crisis");
+test("the crisis When: line is doing the work the phrase list used to", () => {
+  const crisis = findTopic(topics, "crisis");
+  // It is the only description the model gets, so it has to cover the indirect
+  // phrasings and say which way to err against distress.
+  assert.match(crisis.when, /suicide/i);
+  assert.match(crisis.when, /self-harm|hurt themselves/i);
+  assert.match(crisis.when, /slang|indirect/i);
+  assert.match(crisis.when, /any doubt/i);
 });
 
 test("reading the model's topic answer tolerates a chatty small model", () => {
@@ -94,14 +94,17 @@ test("the topics that need a disclaimer append one verbatim", () => {
   assert.match(findTopic(topics, "distress").sayAfter, /qualified professional|crisis line/i);
 });
 
-test("the notes forbid the things a 0.5B model should never say", () => {
+test("the notes forbid the things a small model should never say", () => {
   const money = findTopic(topics, "money").notes.join(" ");
   assert.match(money, /never name a specific security/i);
   assert.match(money, /never predict a return/i);
 
   const health = findTopic(topics, "health").notes.join(" ");
   assert.match(health, /never diagnose/i);
-  assert.match(health, /medication/i);
+  // The line moved from "never mention a medication" to "never suggest they
+  // take one", so the note has to carry the narrower rule, not just the word.
+  assert.match(health, /suggesting they take one is not/i);
+  assert.match(health, /a dose never is/i);
 
   const distress = findTopic(topics, "distress").notes.join(" ");
   assert.match(distress, /do not diagnose/i);
@@ -113,9 +116,13 @@ test("every reply carries a routing note that says where it came from", () => {
   assert.match(noteFor(findTopic(topics, "money"), "model"), /grounded in reviewed money guidance/i);
   assert.match(noteFor(findTopic(topics, "distress"), "model"), /grounded in/i);
   assert.match(noteFor(findTopic(topics, "general"), "model"), /local model/i);
-  assert.match(noteFor(findTopic(topics, "crisis"), "crisis"), /model was not involved/i);
+  // The note has to stop claiming the model wasn't involved, because routing
+  // here is now the only thing the model did.
+  assert.match(noteFor(findTopic(topics, "crisis"), "crisis"), /model read this as crisis language/i);
+  assert.match(noteFor(findTopic(topics, "crisis"), "crisis"), /not something the model wrote/i);
   assert.match(noteFor(undefined, "model-off"), /isn't running/i);
   assert.match(noteFor(undefined, "model-failed"), /try again/i);
+  assert.match(noteFor(undefined, "model-blocked"), /recommending a medication/i);
 });
 
 test("the playbook copy follows the house style", () => {
@@ -143,8 +150,6 @@ test("the parser survives a hand-edited file", () => {
   assert.deepEqual(edited.map((topic) => topic.id), ["cooking", "general"]);
   assert.deepEqual(edited[0].notes, ["Pick one meal and repeat it.", "Keep the ingredients visible."]);
   assert.equal(edited[0].sayAfter, "Not a nutritionist.");
-  assert.deepEqual(edited[0].safetyNet, []);
-  assert.deepEqual(edited[0].except, []);
   // A topic with no When: line is skipped rather than offered to the model.
   assert.equal(parsePlaybook("## broken\n- a note").length, 0);
 });

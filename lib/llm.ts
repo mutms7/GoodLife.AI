@@ -1,12 +1,19 @@
 import { normalizeCoachText } from "@/lib/advice";
 import { PLAYBOOK } from "@/lib/coach-playbook";
-import { fallbackTopic, matchSafetyNet, readTopicChoice, topicMenu, type Topic } from "@/lib/playbook";
-import { buildSystemPrompt, buildTopicSystemPrompt, buildTopicUserPrompt, buildUserPrompt, looksLikeLeak, makeFence } from "@/lib/prompt";
+import { fallbackTopic, readTopicChoice, topicMenu, type Topic } from "@/lib/playbook";
+import { buildSystemPrompt, buildTopicSystemPrompt, buildTopicUserPrompt, buildUserPrompt, looksLikeLeak, makeFence, prescribesMedication } from "@/lib/prompt";
 
-export const MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
-export const MODEL_LABEL = "Qwen 0.5B";
-/** Rounded, and stated everywhere we ask someone to start the download. */
-export const MODEL_DOWNLOAD_LABEL = "about 1 GB";
+/* 0.5B was too small to hold the rules it was given. It wrote listicles when
+ * the voice asked for a few sentences, and it recommended a sleeping pill it
+ * had invented the generic name for, with the rule against that sitting in its
+ * own prompt. 1.5B costs more download and more time per reply and follows a
+ * negative instruction far better, which is most of what this app asks for. */
+export const MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+export const MODEL_LABEL = "Qwen 1.5B";
+/** Rounded, and stated everywhere we ask someone to start the download. This
+ *  tracks WebLLM's own figure for the model, which sits a little above the
+ *  weights on disk, so the number we quote is never the flattering one. */
+export const MODEL_DOWNLOAD_LABEL = "about 1.6 GB";
 
 export type ModelStatus = "off" | "loading" | "ready" | "error" | "unsupported";
 
@@ -58,7 +65,7 @@ export async function unloadModel() {
   engine = null;
 }
 
-/** Actually reclaims the roughly 1 GB on disk. WebLLM keeps its weights in
+/** Actually reclaims the disk space. WebLLM keeps its weights in
  *  Cache Storage under its own buckets, so this drops every cache it owns. */
 export async function deleteModelCache() {
   await unloadModel();
@@ -71,19 +78,16 @@ export async function deleteModelCache() {
   }
 }
 
-/** The literal-phrase floor. Runs with no model and no network, so it also
- *  works before the download finishes. */
-export function safetyNetTopic(message: string): Topic | undefined {
-  return matchSafetyNet(PLAYBOOK, message);
-}
-
 /** Asks the model which playbook topic fits. A handful of tokens at
  *  temperature 0, so it costs far less than the answer that follows. Falls back
  *  to `general` if the model is off, refuses, or says something unrecognisable,
- *  which only ever means broader notes, never no notes. */
+ *  which only ever means broader notes, never no notes.
+ *
+ *  This is now the only thing that recognises a crisis message. There is no
+ *  phrase list underneath it, which is a deliberate choice, and it means the
+ *  coach cannot recognise one at all until the model has finished downloading.
+ *  The caller gates on that. */
 export async function chooseTopic(message: string): Promise<Topic> {
-  const net = safetyNetTopic(message);
-  if (net) return net;
   if (!engine) return fallbackTopic(PLAYBOOK);
 
   const fence = makeFence();
@@ -108,10 +112,18 @@ export async function chooseTopic(message: string): Promise<Topic> {
 
 export type StreamRequest = { goodDay: string; message: string; notes: string[] };
 
-/** Streams a reply token by token. Returns the finished text, or null when the
- *  model produced nothing usable or echoed the prompt scaffolding back, so the
- *  caller can show a retry instead of the leak. */
-export async function streamReply(request: StreamRequest, onToken: (partial: string) => void) {
+/** Why a reply never made it to the thread. `blocked` means we threw away a
+ *  finished thought on purpose; `failed` means there was nothing worth showing.
+ *  The two read differently to the person, so they stay apart. */
+export type StreamResult = { ok: true; text: string } | { ok: false; reason: "blocked" | "failed" };
+
+/** Streams a reply token by token. `null` only when the model isn't loaded,
+ *  which the caller already checks for. Everything else comes back as a result
+ *  the thread can explain. */
+export async function streamReply(
+  request: StreamRequest,
+  onToken: (partial: string) => void,
+): Promise<StreamResult | null> {
   if (!engine) return null;
   const fence = makeFence();
   const stream = await engine.chat.completions.create({
@@ -120,25 +132,24 @@ export async function streamReply(request: StreamRequest, onToken: (partial: str
       { role: "user", content: buildUserPrompt(request.message, fence) },
     ],
     temperature: 0.4,
-    max_tokens: 220,
+    // Room for a short list to actually finish. The voice is what keeps replies
+    // brief; this is only here so a reply is never cut off mid-word.
+    max_tokens: 400,
     stream: true,
   });
 
   let text = "";
-  let leaked = false;
   for await (const chunk of stream) {
     const token = chunk.choices?.[0]?.delta?.content;
     if (!token) continue;
     text += token;
-    // Checked mid-stream so a leaking reply never reaches the screen at all.
-    if (looksLikeLeak(text, fence)) {
-      leaked = true;
-      break;
-    }
+    // Both checks run mid-stream, so neither a leak nor a prescription is ever
+    // on screen, not even for the second before the stream ends.
+    if (looksLikeLeak(text, fence)) return { ok: false, reason: "failed" };
+    if (prescribesMedication(text)) return { ok: false, reason: "blocked" };
     onToken(normalizeCoachText(text));
   }
 
-  if (leaked) return null;
   const finished = normalizeCoachText(text).trim();
-  return finished.length ? finished : null;
+  return finished.length ? { ok: true, text: finished } : { ok: false, reason: "failed" };
 }

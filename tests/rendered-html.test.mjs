@@ -81,6 +81,10 @@ test("the topic comes from the model reading the playbook, not from keywords", a
   assert.match(llm, /topicMenu\(PLAYBOOK\)/);
   // The old keyword table is gone from the advice module entirely.
   assert.doesNotMatch(advice, /classifyMessage|PATTERNS|DOMAIN_NOTES|MUST_APPEND/);
-  // Only the crisis floor still matches phrases, and it comes from the file.
-  assert.match(llm, /matchSafetyNet\(PLAYBOOK, message\)/);
+  // And so is the crisis floor that used to sit under the model. Phrase
+  // matching is gone from the whole reply path, crisis included, so nothing
+  // reaches the fixed reply except the model naming the topic.
+  assert.doesNotMatch(llm, /matchSafetyNet|safetyNetTopic/);
+  assert.doesNotMatch(app, /matchSafetyNet|safetyNetTopic/);
+  assert.match(app, /topic\.fixedReply/);
 });

@@ -11,9 +11,9 @@ const STEPS = [
 const ROUTING = [
   { label: "Habits", value: "The model answers, carrying the notes on cues, two-minute versions and never missing twice.", fixed: false },
   { label: "Money", value: "The model answers, held to buffer-then-interest and general education. Never a specific investment or amount.", fixed: false },
-  { label: "Health", value: "The model answers, held to wake-time basics. It can't diagnose or name a medication, and it points at a clinician.", fixed: false },
+  { label: "Health", value: "The model answers, held to wake-time basics. It can't diagnose, and it can't tell you to take anything or name a dose. It points at a clinician.", fixed: false },
   { label: "Heavier days", value: "The model answers, told not to diagnose or minimise. A pointer to real support is appended afterwards, not left to the model.", fixed: false },
-  { label: "Crisis", value: "A fixed response, matched on literal phrases before anything runs. The model is not involved, and it works before the download.", fixed: true },
+  { label: "Crisis", value: "The model routes here and then stops. The reply is fixed text it never writes. Recognising it needs the model, so the download screen carries the numbers too.", fixed: true },
 ];
 
 export default function Site() {
