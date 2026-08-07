@@ -13,14 +13,22 @@ const DESCRIPTION = "Answer a few honest questions and get three small steps for
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const localHost = host?.startsWith("localhost") || host?.startsWith("127.0.0.1");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? (localHost ? "http" : "https");
   const base = host ? new URL(`${protocol}://${host}`) : new URL("https://goodlife.local");
   const image = new URL("/og.png", base).toString();
   return {
     metadataBase: base,
     title: TITLE,
     description: DESCRIPTION,
-    icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+    icons: {
+      icon: [
+        { url: "/favicon.svg?v=2", type: "image/svg+xml" },
+        { url: "/favicon.ico?v=2", type: "image/x-icon", sizes: "any" },
+      ],
+      shortcut: "/favicon.ico?v=2",
+      apple: "/icon-192.png?v=2",
+    },
     manifest: "/manifest.webmanifest",
     themeColor: "#f5ead8",
     openGraph: { title: TITLE, description: DESCRIPTION, type: "website", images: [{ url: image, width: 1200, height: 630, alt: TITLE }] },

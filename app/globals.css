@@ -8,6 +8,7 @@
   --color-text: #201e1d;
   --color-accent: #c67139;
   --color-accent-2: #7a8a5e;
+  --color-brand-green: #6b7f3f;
   --color-divider: color-mix(in srgb, #201e1d 16%, transparent);
 
   --color-neutral-100: #f9f4ed;
@@ -740,7 +741,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: var(--color-accent-2-700);
+  background: var(--color-brand-green);
   color: var(--color-neutral-100);
 }
 .site-wordmark { font-family: var(--font-heading); font-size: 19px; }

@@ -1,16 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-  <rect width="24" height="24" rx="7" fill="#56633f"/>
-  <g transform="translate(12 12) scale(0.74) translate(-12 -13)" fill="none" stroke="#f9f4ed" stroke-width="1.7" stroke-linecap="round">
-    <path d="M12 12c0 4 -0.8 7 -1 10"/>
-    <path d="M12 12 19.2 11"/>
-    <path d="M12 12 17.4 5.8"/>
-    <path d="M12 12 12 4"/>
-    <path d="M12 12 6.6 5.8"/>
-    <path d="M12 12 4.8 11"/>
-    <circle cx="19.2" cy="11" r="1.8" fill="#f9f4ed" stroke="none"/>
-    <circle cx="17.4" cy="5.8" r="1.8" fill="#f9f4ed" stroke="none"/>
-    <circle cx="12" cy="4" r="1.8" fill="#f9f4ed" stroke="none"/>
-    <circle cx="6.6" cy="5.8" r="1.8" fill="#f9f4ed" stroke="none"/>
-    <circle cx="4.8" cy="11" r="1.8" fill="#f9f4ed" stroke="none"/>
+  <rect width="24" height="24" rx="6" fill="#6b7f3f"/>
+  <!-- Bold, centered mark remains distinct at 16px. -->
+  <g fill="none" stroke="#f9f4ed" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 11.5c0 3.8-.6 7.1-.9 9.7"/>
+    <path d="M12 11.5 19.1 10.7M12 11.5 17.1 5.6M12 11.5V3.9M12 11.5 6.9 5.6M12 11.5 4.9 10.7"/>
+  </g>
+  <g fill="#f9f4ed">
+    <circle cx="19.1" cy="10.7" r="1.75"/><circle cx="17.1" cy="5.6" r="1.75"/>
+    <circle cx="12" cy="3.9" r="1.75"/><circle cx="6.9" cy="5.6" r="1.75"/>
+    <circle cx="4.9" cy="10.7" r="1.75"/>
   </g>
 </svg>
