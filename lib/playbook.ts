@@ -1,9 +1,9 @@
 /* Reads playbook.md into topics the coach can be pointed at.
  *
- * The model picks which topic fits a message, so nothing here matches keywords
- * to decide that. The one exception is `Safety net:`, which is a literal-phrase
- * floor under the model's judgement for the cases where being wrong is
- * expensive. Dependency-free so the tests can parse the real file. */
+ * Routing is entirely the model's call. Nothing here matches keywords, and
+ * there is no phrase list underneath it: the model reads every topic's `When:`
+ * line and names the one that fits, including `crisis`. Dependency-free so the
+ * tests can parse the real file. */
 
 export type Topic = {
   id: string;
@@ -11,28 +11,14 @@ export type Topic = {
   when: string;
   /** Injected into the answering prompt once this topic is chosen. */
   notes: string[];
-  /** Literal phrases checked before the model runs. */
-  safetyNet: string[];
-  /** Phrases that cancel a safety-net hit, for idioms that share its wording.
-   *  Cancelling doesn't drop the message, it hands the call to the model. */
-  except: string[];
-  /** Present means the model is skipped and this is sent verbatim. */
+  /** Present means the model routes here and then this is sent verbatim, so the
+   *  topic's own notes never reach the answering prompt. */
   fixedReply?: string;
   /** Appended verbatim after the model finishes. */
   sayAfter?: string;
 };
 
-const FIELDS = ["when", "safety net", "except", "fixed reply", "say after"] as const;
-
-function phraseList(value: string): string[] {
-  return value.split(",").map((phrase) => phrase.trim().toLowerCase()).filter(Boolean);
-}
-
-/** Collapses punctuation to single spaces and pads the ends, so `includes` on a
- *  padded phrase behaves like a whole-word match. */
-function normalize(text: string): string {
-  return ` ${text.toLowerCase().replace(/[^a-z0-9']+/g, " ").replace(/\s+/g, " ").trim()} `;
-}
+const FIELDS = ["when", "fixed reply", "say after"] as const;
 
 function fieldKey(line: string): { key: string; value: string } | null {
   const match = /^([A-Za-z ]+):\s*(.*)$/.exec(line);
@@ -50,7 +36,7 @@ export function parsePlaybook(markdown: string): Topic[] {
 
     const heading = /^##\s+(.+)$/.exec(line);
     if (heading) {
-      current = { id: heading[1].trim().toLowerCase(), when: "", notes: [], safetyNet: [], except: [] };
+      current = { id: heading[1].trim().toLowerCase(), when: "", notes: [] };
       topics.push(current);
       continue;
     }
@@ -61,8 +47,6 @@ export function parsePlaybook(markdown: string): Topic[] {
       if (field.key === "when") current.when = field.value;
       if (field.key === "fixed reply") current.fixedReply = field.value;
       if (field.key === "say after") current.sayAfter = field.value;
-      if (field.key === "safety net") current.safetyNet = phraseList(field.value);
-      if (field.key === "except") current.except = phraseList(field.value);
       continue;
     }
 
@@ -89,15 +73,6 @@ export function topicMenu(topics: Topic[]): string {
   return topics.map((topic) => `${topic.id}: ${topic.when}`).join("\n");
 }
 
-/** Literal-phrase check on whole-word boundaries, so "kms" doesn't fire inside
- *  another word. Runs before the model, and only for topics that declare it. An
- *  `Except:` hit cancels the match and lets the model make the call instead. */
-export function matchSafetyNet(topics: Topic[], message: string): Topic | undefined {
-  const text = normalize(message);
-  const hits = (phrases: string[]) => phrases.some((phrase) => text.includes(normalize(phrase)));
-  return topics.find((topic) => hits(topic.safetyNet) && !hits(topic.except));
-}
-
 /** Reads the model's answer to the topic question. Small models like to add a
  *  sentence around the word, so this looks for any known id rather than
  *  demanding an exact match. */
@@ -117,14 +92,15 @@ const GROUNDED_NOTE: Record<string, string> = {
   housing: "reviewed housing guidance",
 };
 
-export type ReplySource = "model" | "crisis" | "model-off" | "model-failed";
+export type ReplySource = "model" | "crisis" | "model-off" | "model-failed" | "model-blocked";
 
 /** The note under a coach reply. It is a designed element, not debug output,
  *  so every reply carries one. */
 export function noteFor(topic: Topic | undefined, source: ReplySource): string {
-  if (source === "crisis" || topic?.fixedReply) return "Crisis language, so this is a fixed response. The model was not involved.";
+  if (source === "crisis" || topic?.fixedReply) return "The model read this as crisis language and routed it here. The reply is fixed text, not something the model wrote.";
   if (source === "model-off") return "The coach needs the local model, and it isn't running yet.";
   if (source === "model-failed") return "The model didn't finish that one. Nothing was sent anywhere, so you can just try again.";
+  if (source === "model-blocked") return "That reply started recommending a medication, so it was stopped before you saw it. Nothing was sent anywhere.";
   const grounded = topic ? GROUNDED_NOTE[topic.id] : undefined;
   return grounded
     ? `Local model on your device, grounded in ${grounded}.`

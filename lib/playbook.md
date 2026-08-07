@@ -5,21 +5,17 @@ how you change what the coach says, and you shouldn't need to touch any code.
 
 Each `##` heading is one topic. The model reads the `When:` lines, picks the one
 that fits the message, and then only that topic's notes go into the prompt it
-answers with. There is no keyword matching deciding this, so write `When:` the
-way you'd describe the topic out loud to a person.
+answers with. There is no keyword matching anywhere in this, and no phrase list
+underneath it. The model's judgement is the whole routing mechanism, so a `When:`
+line is load-bearing, and `crisis` is load-bearing most of all.
 
 Fields, all optional except `When:`:
 
 - `When:` one line. The description the model chooses between. Keep it concrete.
-- `Safety net:` comma-separated phrases matched literally, before the model runs.
-  A floor under the model's judgement, not the mechanism. Only worth it where
-  being wrong is expensive. Whole words only, so `unalive` won't catch
-  `unaliving`. List both.
-- `Except:` phrases that cancel a safety-net hit, for idioms that borrow its
-  wording. Cancelling doesn't drop the message, it just hands the call back to
-  the model.
-- `Fixed reply:` verbatim text. If a topic has one, the model is skipped and
-  this is sent instead.
+  This is the only thing deciding where a message goes, including a message
+  about suicide, so write it the way you'd describe the topic out loud.
+- `Fixed reply:` verbatim text. Once the model has routed to a topic that has
+  one, it is sent as written and the model never gets asked for an answer.
 - `Say after:` verbatim text appended after the model finishes. Use it for
   anything that has to survive a bad generation word for word.
 - Bullet list: the notes injected into the prompt. Write them as instructions to
@@ -29,15 +25,11 @@ Keep `general` last. It's the fallback when nothing else fits.
 
 ## crisis
 
-When: they mention suicide, self-harm, wanting to die, or being in danger right now
-
-Safety net: kill myself, killing myself, suicide, suicidal, take my own life, end my life, end it all, self harm, self-harm, hurt myself, hurting myself, cut myself, overdose, overdosed, kms, unalive, unaliving, unalived, want to die, want to be dead, wish i were dead, wish i was dead, no reason to live, no point in living, no point in being here, can't go on, cannot go on, better off without me, don't want to live, don't want to be here
-
-Except: die of embarrassment, die of laughing, die laughing, dying of embarrassment, to die for
+When: they mention suicide, self-harm, wanting to die, wanting to not exist, having a plan to hurt themselves, feeling that people would be better off without them, or being in danger right now. This includes slang and indirect phrasing. Choose this over distress whenever there is any doubt at all between the two.
 
 Fixed reply: I'm not the right help for this, and I don't want to guess. Please contact your local emergency number now, or call or text 988 in Canada and the US for confidential crisis support. If there's someone nearby you trust, tell them tonight. You deserve a person beside you, not an app.
 
-- This topic never reaches the model. The fixed reply above is sent as written.
+- The model routes here and then stops. The fixed reply above is sent as written, and these notes never reach an answering prompt.
 
 ## distress
 
@@ -70,7 +62,8 @@ Say after: I'm not a clinician, so if this keeps up it's worth seeing one.
 
 - Wake time is the easier end to hold, and it usually pulls bedtime along with it. Suggest one wake time kept within 30 minutes for seven days, weekends included.
 - Early daylight does more for tonight's sleep than anything attempted at 11pm.
-- Never diagnose, never name a condition, never mention a medication, supplement or dose.
+- Never diagnose and never name a condition.
+- Naming a medication or supplement as general information is fine. Suggesting they take one is not, and a dose never is. Send that to their doctor.
 - If it sounds persistent or clinical, say a qualified clinician is the right place for it, not an app.
 
 ## housing

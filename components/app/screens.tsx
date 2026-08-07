@@ -73,7 +73,7 @@ export function YourData({ status, progress, onToggleModel, onExport, onClear }:
           <div className="data-card-top">
             <div className="data-text" style={{ maxWidth: 520 }}>
               <span className="data-title">The local AI coach</span>
-              <span className="data-sub">Qwen2.5 0.5B, quantized, running in your browser through WebGPU. About a 1 GB download, once per browser profile. Conversation needs it, so there&apos;s no coach until it&apos;s here. Your three actions, the seven-day plan and the ideas all work without it. Deleting the download frees the disk space and turns conversation back off.</span>
+              <span className="data-sub">Qwen2.5 1.5B, quantized, running in your browser through WebGPU. About a 1.6 GB download, once per browser profile. Conversation needs it, so there&apos;s no coach until it&apos;s here. Your three actions, the seven-day plan and the ideas all work without it. Deleting the download frees the disk space and turns conversation back off.</span>
             </div>
             <button type="button" className="btn btn-secondary" onClick={onToggleModel} disabled={status === "loading" || status === "unsupported"}>{buttonLabel}</button>
           </div>
