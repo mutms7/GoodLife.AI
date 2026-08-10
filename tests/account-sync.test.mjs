@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { conversationLabel, dayStarter, responseTitle } from "../lib/conversation-ui.ts";
 
 test("account access is verified and forced before the product mounts", async () => {
   const [gate, app] = await Promise.all([
@@ -35,4 +36,22 @@ test("the requested navigation and removed prompts stay enforced", async () => {
   for (const label of ["Your day", "Your week", "Your year", "Habits", "Ideas", "Your Data", "Settings"]) assert.match(rail, new RegExp(label));
   assert.doesNotMatch(thread, /Too much for today|Why the money one|Bedtime keeps slipping/);
   assert.doesNotMatch(screens, /Seven days on|sequence restarts/);
+});
+
+test("conversation labels use the coach's first response", () => {
+  const msgs = [
+    { isUser: true, text: "Why is bedtime difficult?" },
+    { isUser: false, text: "Start by making the first step much smaller than usual tonight." },
+    { isUser: false, text: "A later answer should not rename it." },
+  ];
+  assert.equal(responseTitle(msgs), "Start by making the first step much…");
+  assert.equal(conversationLabel({ id: "1", date: "2026-08-10", title: "Why is bedtime difficult?", msgs }), "Start by making the first step much…");
+  assert.equal(responseTitle([{ isUser: true, text: "Still waiting" }]), "New conversation");
+});
+
+test("the daily starter reflects the active habit count", () => {
+  assert.match(dayStarter("Morning", 3), /All three/);
+  assert.match(dayStarter("Morning", 2), /two small habits/);
+  assert.match(dayStarter("Morning", 1), /one small habit/);
+  assert.match(dayStarter("Morning", 0), /don't have any active habits/);
 });

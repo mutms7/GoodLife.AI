@@ -1,12 +1,12 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Dandelion, Icon, type IconName } from "@/components/marks";
+import { conversationLabel } from "@/lib/conversation-ui";
 import type { Conversation, RecentDay } from "@/lib/storage";
 
 export type Screen = "today" | "week" | "year" | "habits" | "ideas" | "data" | "settings";
 
-/* Desktop and mobile now offer the same destinations. The rail used to omit
- * Week, which left the screen reachable only by clicking a past day. */
 const NAV: { id: Screen; label: string }[] = [
   { id: "today", label: "Your day" },
   { id: "week", label: "Your week" },
@@ -24,9 +24,7 @@ const TABS: { id: Screen; label: string; icon: IconName }[] = [
   { id: "data", label: "You", icon: "user" },
 ];
 
-/** The rail lists four days to stay inside the viewport. The Week screen shows
- *  all seven. */
-const RAIL_DAYS = 4;
+const RAIL_DAYS = 7;
 
 export function Rail({ screen, setScreen, days, streak, conversations = [], activeConversationId, onOpenDay, onOpenConversation, onNewConversation }: {
   screen: Screen;
@@ -39,46 +37,83 @@ export function Rail({ screen, setScreen, days, streak, conversations = [], acti
   onOpenConversation?: (id: string) => void;
   onNewConversation: () => void;
 }) {
+  const visibleDays = days.slice(0, RAIL_DAYS);
+  const activeDay = useMemo(
+    () => conversations.find((conversation) => conversation.id === activeConversationId)?.date,
+    [activeConversationId, conversations],
+  );
+  const firstExpandedDay = activeDay ?? visibleDays[0]?.key;
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set(firstExpandedDay ? [firstExpandedDay] : []));
+
+  const toggleDay = (key: string, isToday: boolean) => {
+    setExpandedDays((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+    if (isToday) setScreen("today");
+    else onOpenDay(key);
+  };
+
+  const startConversation = () => {
+    const today = visibleDays.find((day) => day.isToday)?.key;
+    if (today) setExpandedDays((current) => new Set([...current, today]));
+    onNewConversation();
+  };
+
   return (
     <aside className="rail">
       <div className="rail-brand">
         <span className="rail-brand-mark"><Dandelion size={20} strokeWidth={1.4} /></span>
         <span className="rail-wordmark">goodlife<span>.ai</span></span>
       </div>
-      <button type="button" className="btn rail-new" onClick={onNewConversation}>
+      <button type="button" className="btn rail-new" onClick={startConversation}>
         <Icon name="plus" size={15} /> New conversation
       </button>
 
-      <div className="rail-label">Your days</div>
-      <div className="rail-list">
-        {days.slice(0, RAIL_DAYS).map((day) => (
-          <div key={day.key} className="rail-day-group">
-            <button
-              type="button"
-              className={`rail-row rail-day ${day.isToday && screen === "today" ? "is-active" : ""}`}
-              onClick={() => (day.isToday ? setScreen("today") : onOpenDay(day.key))}
-            >
-              {day.label}
-              <span className={`rail-count ${day.done ? "" : "is-skipped"}`}>{day.done ? `${day.done}/${day.served}` : "skipped"}</span>
-            </button>
-            {conversations.filter((conversation) => conversation.date === day.key).map((conversation) => (
-              <button key={conversation.id} type="button" className={`rail-row rail-conversation ${conversation.id === activeConversationId ? "is-active" : ""}`} onClick={() => onOpenConversation?.(conversation.id)}>
-                <span aria-hidden="true">•</span>
-                <span>{conversation.title || "Conversation"}</span>
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
+      <div className="rail-scroll">
+        <div className="rail-label">Your days</div>
+        <div className="rail-list">
+          {visibleDays.map((day) => {
+            const expanded = expandedDays.has(day.key);
+            const dayConversations = conversations.filter((conversation) => conversation.date === day.key);
+            return (
+              <div key={day.key} className="rail-day-group">
+                <button
+                  type="button"
+                  className={`rail-row rail-day ${day.isToday && screen === "today" ? "is-active" : ""}`}
+                  onClick={() => toggleDay(day.key, day.isToday)}
+                  aria-expanded={expanded}
+                  aria-controls={`rail-conversations-${day.key}`}
+                >
+                  <span className="rail-day-label"><span className={`rail-disclosure ${expanded ? "is-open" : ""}`} aria-hidden="true">›</span>{day.label}</span>
+                  <span className={`rail-count ${day.done ? "" : "is-skipped"}`}>{day.done ? `${day.done}/${day.served}` : "skipped"}</span>
+                </button>
+                {expanded && (
+                  <div id={`rail-conversations-${day.key}`} className="rail-conversations">
+                    {dayConversations.map((conversation) => (
+                      <button key={conversation.id} type="button" className={`rail-row rail-conversation ${conversation.id === activeConversationId ? "is-active" : ""}`} onClick={() => onOpenConversation?.(conversation.id)}>
+                        <span aria-hidden="true">•</span>
+                        <span>{conversationLabel(conversation)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-      <div className="rail-divider" />
-      <nav className="rail-list">
-        {NAV.map((item) => (
-          <button key={item.id} type="button" className={`rail-row ${screen === item.id ? "is-active" : ""}`} onClick={() => setScreen(item.id)} aria-current={screen === item.id ? "page" : undefined}>
-            {item.label}
-          </button>
-        ))}
-      </nav>
+        <div className="rail-divider" />
+        <nav className="rail-list">
+          {NAV.map((item) => (
+            <button key={item.id} type="button" className={`rail-row ${screen === item.id ? "is-active" : ""}`} onClick={() => setScreen(item.id)} aria-current={screen === item.id ? "page" : undefined}>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       <div className="rail-bottom">
         <div className="rail-streak">

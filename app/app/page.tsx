@@ -7,6 +7,7 @@ import { AccountButton, MobileHeader, Rail, TabBar, type Screen } from "@/compon
 import { Habits, Ideas, Settings, Week, Year, YourData } from "@/components/app/screens";
 import { Composer, CoachMessage, MessageList, ModelGate, PlanCard, useScrollToLatest } from "@/components/app/thread";
 import { completionCounts, completionCountsBefore, emptyProfile, getAction, graduatedActions, hasGraduated, rankActions, type Action, type Profile } from "@/lib/advice";
+import { dayStarter, responseTitle } from "@/lib/conversation-ui";
 import { noteFor } from "@/lib/playbook";
 import { MODEL_LABEL, chooseTopic, deleteModelCache, loadModel, stopGeneration, streamReply, unloadModel, webgpuSupported, type ModelStatus } from "@/lib/llm";
 import { clear, dateKey, emptyData, exportFile, freshData, load, recentDays, save, streakFrom, type Conversation, type Message, type SavedData } from "@/lib/storage";
@@ -230,12 +231,12 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
   const days = useMemo(() => recentDays(data.days, servedByDay), [data.days, servedByDay]);
   const threadRef = useScrollToLatest(`${activeMsgs.length}:${pending?.text ?? ""}`);
 
-  const updateActiveConversation = (current: SavedData, msgs: Message[], title?: string): SavedData => {
+  const updateActiveConversation = (current: SavedData, msgs: Message[]): SavedData => {
     const id = current.activeConversationId;
-    const conversations = current.conversations.map((conversation) => conversation.id === id ? { ...conversation, msgs, title: title ?? conversation.title } : conversation);
+    const conversations = current.conversations.map((conversation) => conversation.id === id ? { ...conversation, msgs, title: responseTitle(msgs) } : conversation);
     return { ...current, conversations, msgs, activeConversationId: id };
   };
-  const push = (message: Message) => mutateData((current) => updateActiveConversation(current, [...(current.conversations.find((conversation) => conversation.id === current.activeConversationId)?.msgs ?? current.msgs), message], message.isUser ? message.text.slice(0, 42) : undefined));
+  const push = (message: Message) => mutateData((current) => updateActiveConversation(current, [...(current.conversations.find((conversation) => conversation.id === current.activeConversationId)?.msgs ?? current.msgs), message]));
 
   const toggleAction = (id: string) => mutateData((current) => {
     const existing = current.days[today] ?? [];
@@ -428,14 +429,21 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
                 streaming bubble is excluded below, or it would read out every
                 token as the model produced it. */}
             <div className="thread" ref={threadRef} role="log" aria-live="polite" aria-relevant="additions">
-              <CoachMessage text={`${greeting()}. Here's what I'd try today. All three are small on purpose, and the shuffle button swaps one out.`} />
-              <PlanCard
-                actions={actions}
-                done={doneToday}
-                counts={counts}
-                onToggle={toggleAction}
-                onSwap={swapAction}
-              />
+              <CoachMessage text={dayStarter(greeting(), actions.length)} />
+              {actions.length > 0 ? (
+                <PlanCard
+                  actions={actions}
+                  done={doneToday}
+                  counts={counts}
+                  onToggle={toggleAction}
+                  onSwap={swapAction}
+                />
+              ) : activeMsgs.length === 0 ? (
+                <div className="empty-habits-card">
+                  <div><strong>Start with one habit</strong><span>Add something small you want to repeat. It will appear here and in Your week.</span></div>
+                  <button type="button" className="btn btn-primary" onClick={() => setScreen("habits")}>Add a habit</button>
+                </div>
+              ) : null}
               <MessageList msgs={activeMsgs} onRetry={retry} />
               {pending && (
                 <div aria-hidden="true">
