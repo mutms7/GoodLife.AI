@@ -8,7 +8,7 @@ const caprasimo = Caprasimo({ variable: "--font-caprasimo", subsets: ["latin"], 
 const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
 const TITLE = "GoodLife.AI | a coach for the life you're actually living";
-const DESCRIPTION = "Answer a few honest questions and get three small steps for today. It runs in your browser, with no account and nothing sent to a server.";
+const DESCRIPTION = "The only ethical AI coach. Runs locally on your computer or phone, with optional account sync and seven-day conversation deletion.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

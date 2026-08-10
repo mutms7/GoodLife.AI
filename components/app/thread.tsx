@@ -41,8 +41,6 @@ export function MessageList({ msgs, onRetry }: { msgs: Message[]; onRetry?: () =
   );
 }
 
-const SUGGESTIONS = ["Too much for today", "Why the money one?", "Bedtime keeps slipping"];
-
 /** The phone layout shortens each action to one line and drops the line
  *  entirely once the row is checked off. */
 function usePhone() {
@@ -57,14 +55,12 @@ function usePhone() {
   return phone;
 }
 
-export function PlanCard({ actions, done, counts, onToggle, onSwap, onAsk, canAsk }: {
+export function PlanCard({ actions, done, counts, onToggle, onSwap }: {
   actions: Action[];
   done: string[];
   counts: Record<string, number>;
   onToggle: (id: string) => void;
   onSwap: (id: string) => void;
-  onAsk: (text: string) => void;
-  canAsk: boolean;
 }) {
   const phone = usePhone();
   return (
@@ -101,11 +97,6 @@ export function PlanCard({ actions, done, counts, onToggle, onSwap, onAsk, canAs
           </div>
         );
       })}
-      <div className="plan-footer">
-        {SUGGESTIONS.map((text) => (
-          <button type="button" key={text} className="btn btn-secondary" onClick={() => onAsk(text)} disabled={!canAsk}>{text}</button>
-        ))}
-      </div>
     </div>
   );
 }
@@ -113,7 +104,7 @@ export function PlanCard({ actions, done, counts, onToggle, onSwap, onAsk, canAs
 const GATE_COPY: Record<Exclude<ModelStatus, "ready">, { title: string; body: string; action: string | null }> = {
   off: {
     title: "Download the coach to start talking",
-    body: `The coach is ${MODEL_LABEL}, and it runs on your device rather than on a server. That means the download comes first: ${MODEL_DOWNLOAD_LABEL}, once per browser, then it's cached. Your three actions above work without it.`,
+    body: `The coach is ${MODEL_LABEL}, and it runs on your device rather than on a server. That means the download comes first: ${MODEL_DOWNLOAD_LABEL}, once per browser, then it's cached. Your actions above work without it.`,
     action: "Download the coach",
   },
   loading: {
@@ -128,7 +119,7 @@ const GATE_COPY: Record<Exclude<ModelStatus, "ready">, { title: string; body: st
   },
   unsupported: {
     title: "This browser can't run the coach",
-    body: "Conversation needs WebGPU, and this browser doesn't offer it. A recent Chrome, Edge or Safari on a machine with a GPU will work. Your three actions and the seven-day plan still work here.",
+    body: "Conversation needs WebGPU, and this browser doesn't offer it. A recent Chrome, Edge or Safari on a machine with a GPU will work. Your actions and history still work here.",
     action: null,
   },
 };

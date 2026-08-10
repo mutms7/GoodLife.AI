@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/marks";
-import { GRADUATE_AT, getWeekPlan, type Action } from "@/lib/advice";
+import { GRADUATE_AT, type Action, type Profile } from "@/lib/advice";
 import type { ModelStatus } from "@/lib/llm";
-import type { RecentDay } from "@/lib/storage";
+import { dateKey, type Habit, type RecentDay } from "@/lib/storage";
+import type { SyncPreferences } from "@/lib/cloud-sync";
+import { FirstRun } from "@/components/app/first-run";
 
 const IDEAS: { tag: string; tone: "sage" | "terracotta" | "neutral"; title: string; body: string; source: string }[] = [
   { tag: "Habits", tone: "sage", title: "Make it smaller than feels worth doing", body: "Two minutes is not a compromise, it's the whole trick. A habit you can do on your worst day is the only one that survives.", source: "After Atomic Habits" },
@@ -44,28 +46,33 @@ const MODEL_STATUS: Record<ModelStatus, string> = {
   unsupported: "This browser can't run it. WebGPU isn't available, so conversation is off.",
 };
 
-export function YourData({ status, progress, onToggleModel, onExport, onClear }: {
+export function YourData({ profile, onFinishProfile, status, progress, onToggleModel, onExport, onClear, cloudClearPending = false }: {
+  profile: Profile | null;
+  onFinishProfile: (next: Profile) => void;
   status: ModelStatus;
   progress: number;
   onToggleModel: () => void;
   onExport: () => void;
   onClear: () => void;
+  cloudClearPending?: boolean;
 }) {
   const [armed, setArmed] = useState(false);
   const buttonLabel = status === "ready" ? "Delete the download" : status === "loading" ? "Downloading" : status === "error" ? "Try again" : "Download the model";
 
   return (
     <div className="screen-scroll">
+      {!profile && <FirstRun profile={profile} onFinish={onFinishProfile} />}
       <div className="screen-lead" style={{ maxWidth: 700 }}>
         <h3>Your data</h3>
-        <p>Your answers, your completions and every message live in this browser&apos;s storage. There&apos;s no GoodLife.AI server holding a copy, which also means clearing site data can wipe it. Export sometimes.</p>
+        <p>Your model and AI work stay on this device. Your profile, habits, completions and settings sync to your account. Conversations are deleted after seven days.</p>
       </div>
 
       <div className="data-stack">
+        {cloudClearPending && <p className="auth-message" role="status">Local data is cleared. The online copy will be deleted as soon as this device reconnects.</p>}
         <div className="data-card">
           <div className="data-text">
             <span className="data-title">Export everything as JSON</span>
-            <span className="data-sub">One file: profile, plans, streak, chat history.</span>
+              <span className="data-sub">One file: profile, habits, completions and conversation history.</span>
           </div>
           <button type="button" className="btn btn-primary" onClick={onExport}>Download</button>
         </div>
@@ -74,7 +81,7 @@ export function YourData({ status, progress, onToggleModel, onExport, onClear }:
           <div className="data-card-top">
             <div className="data-text" style={{ maxWidth: 520 }}>
               <span className="data-title">The local AI coach</span>
-              <span className="data-sub">Qwen2.5 1.5B, quantized, running in your browser through WebGPU. About a 1.6 GB download, once per browser profile. Conversation needs it, so there&apos;s no coach until it&apos;s here. Your three actions, the seven-day plan and the ideas all work without it. Deleting the download frees the disk space and turns conversation back off.</span>
+              <span className="data-sub">Qwen2.5 1.5B, quantized, running in your browser through WebGPU. About a 1.6 GB download, once per browser profile. Conversation needs it, so there&apos;s no coach until it&apos;s here. Your actions, habits and ideas all work without it. Deleting the download frees the disk space and turns conversation back off.</span>
             </div>
             <button type="button" className="btn btn-secondary" onClick={onToggleModel} disabled={status === "loading" || status === "unsupported"}>{buttonLabel}</button>
           </div>
@@ -106,19 +113,16 @@ export function YourData({ status, progress, onToggleModel, onExport, onClear }:
   );
 }
 
-export function Week({ days, selected, onSelect, planAction, planDay, served, done, graduated }: {
+export function Week({ days, selected, onSelect, served, done, onToggle, graduated }: {
   days: RecentDay[];
   selected: string;
   onSelect: (key: string) => void;
-  planAction: Action | undefined;
-  /** Zero-based index into the seven steps, or -1 before a plan starts. */
-  planDay: number;
   served: Action[];
   done: string[];
+  onToggle: (id: string) => void;
   graduated: Action[];
 }) {
   const day = days.find((item) => item.key === selected) ?? days[0];
-  const plan = getWeekPlan(planAction);
 
   return (
     <div className="screen-scroll">
@@ -150,32 +154,21 @@ export function Week({ days, selected, onSelect, planAction, planDay, served, do
           <p className="week-empty">Nothing was logged for this day.</p>
         ) : (
           <ul className="week-detail-list">
-            {served.map((action) => (
-              <li key={action.id} className={done.includes(action.id) ? "is-done" : ""}>
-                <span className="week-detail-mark">{done.includes(action.id) && <Icon name="check" size={12} />}</span>
-                {action.title}
-              </li>
-            ))}
+            {served.map((action) => {
+              const isDone = done.includes(action.id);
+              return (
+                <li key={action.id} className={isDone ? "is-done" : ""}>
+                  <button type="button" className="week-task" onClick={() => onToggle(action.id)} aria-pressed={isDone}>
+                    <span className="week-detail-mark">{isDone && <Icon name="check" size={12} />}</span>
+                    <span>{action.title}</span>
+                    <span className="week-task-state">{isDone ? "Complete" : "Incomplete"}</span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
-
-      {planAction && (
-        <>
-          <div className="screen-lead">
-            <h4>Seven days on {planAction.title.toLowerCase()}</h4>
-            <p>{planDay >= 0 ? `You're on day ${planDay + 1}.` : "This starts once it's your first action of the day."} The sequence restarts whenever your top action changes.</p>
-          </div>
-          <div className="week-plan">
-            {plan.map((step, index) => (
-              <div className={`week-step ${index === planDay ? "is-current" : ""} ${index < planDay ? "is-past" : ""}`} key={step.day}>
-                <strong>{step.day}</strong>
-                <span>{step.action}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
 
       {graduated.length > 0 && (
         <>
@@ -193,6 +186,72 @@ export function Week({ days, selected, onSelect, planAction, planDay, served, do
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+export function Year({ days, today = new Date() }: { days: Record<string, string[]>; today?: Date }) {
+  const cells = Array.from({ length: 365 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (364 - index));
+    const key = dateKey(date);
+    return { key, count: days[key]?.length ?? 0 };
+  });
+  return (
+    <div className="screen-scroll">
+      <div className="screen-lead"><h3>Your year</h3><p>A quiet view of the last 365 days. This grid is read-only; your day and week are where you make changes.</p></div>
+      <div className="year-grid" aria-label="365 day completion grid">
+        {cells.map((cell) => <span key={cell.key} className={`year-cell level-${Math.min(cell.count, 3)}`} title={`${cell.key}: ${cell.count} complete`} aria-label={`${cell.key}, ${cell.count} complete`} />)}
+      </div>
+    </div>
+  );
+}
+
+export function Habits({ habits, actions, onAdd, onRename, onReorder, onTogglePause, onDelete }: {
+  habits: Habit[];
+  actions: Action[];
+  onAdd: (action: Action) => void;
+  onRename: (id: string, title: string) => void;
+  onReorder: (id: string, direction: -1 | 1) => void;
+  onTogglePause: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [customTitle, setCustomTitle] = useState("");
+  const available = actions.filter((action) => !habits.some((habit) => habit.actionId === action.id));
+  const addCustom = () => {
+    const title = customTitle.trim();
+    if (!title) return;
+    onAdd({ id: `custom-${Date.now()}`, kicker: "Custom habit", title, body: title, short: title });
+    setCustomTitle("");
+  };
+  return (
+    <div className="screen-scroll">
+      <div className="screen-lead"><h3>Habits</h3><p>Keep the practices that matter, in the order that makes sense for your life. Pause one when the season changes.</p></div>
+      <div className="habit-stack">
+        {habits.map((habit, index) => (
+          <div className={`habit-row ${habit.paused ? "is-paused" : ""}`} key={habit.id}>
+            <input aria-label={`Rename ${habit.title}`} value={habit.title} onChange={(event) => onRename(habit.id, event.target.value)} />
+            <div className="habit-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => onReorder(habit.id, -1)} disabled={index === 0}>Up</button>
+              <button type="button" className="btn btn-secondary" onClick={() => onReorder(habit.id, 1)} disabled={index === habits.length - 1}>Down</button>
+              <button type="button" className="btn btn-secondary" onClick={() => onTogglePause(habit.id)}>{habit.paused ? "Resume" : "Pause"}</button>
+              <button type="button" className="btn btn-secondary" onClick={() => onDelete(habit.id)}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="habit-add"><strong>Add a habit</strong><div>{available.slice(0, 6).map((action) => <button type="button" className="btn btn-secondary" key={action.id} onClick={() => onAdd(action)}>+ {action.title}</button>)}</div><div className="habit-custom"><input value={customTitle} onChange={(event) => setCustomTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addCustom(); }} placeholder="Name a habit" aria-label="New habit name" /><button type="button" className="btn btn-primary" onClick={addCustom} disabled={!customTitle.trim()}>Add</button></div></div>
+    </div>
+  );
+}
+
+export function Settings({ fontSize, onFontSize, syncPreferences, onSyncPreferences, accountLabel = "Account", onSignOut }: { fontSize: "small" | "medium" | "large"; onFontSize: (size: "small" | "medium" | "large") => void; syncPreferences: SyncPreferences; onSyncPreferences: (next: SyncPreferences) => void; accountLabel?: string; onSignOut?: () => void }) {
+  return (
+    <div className="screen-scroll">
+      <div className="screen-lead"><h3>Settings</h3><p>Small choices that make GoodLife fit the way you use it.</p></div>
+      <div className="settings-card"><strong>Font size</strong><div className="settings-options">{(["small", "medium", "large"] as const).map((size) => <button type="button" key={size} className={`btn btn-secondary ${fontSize === size ? "is-selected" : ""}`} onClick={() => onFontSize(size)} aria-pressed={fontSize === size}>{size[0].toUpperCase() + size.slice(1)}</button>)}</div></div>
+      <div className="settings-card column"><strong>Account sync</strong><p>The AI never syncs. Choose which account details do.</p><div className="sync-options">{(["profile", "habits", "completions", "settings", "conversations"] as const).map((key) => <label className="auth-check" key={key}><input type="checkbox" checked={syncPreferences[key]} onChange={(event) => onSyncPreferences({ ...syncPreferences, [key]: event.target.checked })} /> {key === "conversations" ? "Conversations for seven days" : key[0].toUpperCase() + key.slice(1)}</label>)}</div></div>
+      <div className="settings-card"><strong>Account</strong><p>{accountLabel} · synced securely across signed-in devices.</p>{onSignOut && <button type="button" className="btn btn-secondary" onClick={onSignOut}>Sign out</button>}</div>
     </div>
   );
 }

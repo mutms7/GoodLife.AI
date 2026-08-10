@@ -45,9 +45,6 @@ export function CoachDemo() {
             </div>
           )))}
         </div>
-        <div className="demo-suggestions">
-          {DEMO_EXCHANGES.map((exchange) => <button type="button" key={exchange.ask} onClick={() => send(exchange.ask)}>{exchange.ask}</button>)}
-        </div>
         <div className="demo-composer">
           <input
             value={draft}

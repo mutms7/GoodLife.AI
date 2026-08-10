@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Icon } from "@/components/marks";
-import { FirstRun } from "@/components/app/first-run";
-import { MobileHeader, Rail, TabBar, type Screen } from "@/components/app/rail";
-import { Ideas, Week, YourData } from "@/components/app/screens";
+import type { User } from "@supabase/supabase-js";
+import { AuthGate } from "@/components/auth/auth-gate";
+import { AccountButton, MobileHeader, Rail, TabBar, type Screen } from "@/components/app/rail";
+import { Habits, Ideas, Settings, Week, Year, YourData } from "@/components/app/screens";
 import { Composer, CoachMessage, MessageList, ModelGate, PlanCard, useScrollToLatest } from "@/components/app/thread";
-import { actionsServedOn, completionCounts, emptyProfile, getAction, graduatedActions, planDayIndex, type Profile } from "@/lib/advice";
+import { completionCounts, completionCountsBefore, emptyProfile, getAction, graduatedActions, hasGraduated, rankActions, type Action, type Profile } from "@/lib/advice";
 import { noteFor } from "@/lib/playbook";
 import { MODEL_LABEL, chooseTopic, deleteModelCache, loadModel, stopGeneration, streamReply, unloadModel, webgpuSupported, type ModelStatus } from "@/lib/llm";
-import { clear, dateKey, emptyData, exportFile, load, recentDays, save, streakFrom, type Message, type SavedData } from "@/lib/storage";
+import { clear, dateKey, emptyData, exportFile, freshData, load, recentDays, save, streakFrom, type Conversation, type Message, type SavedData } from "@/lib/storage";
+import { clearCloudData, defaultSyncPreferences, getCloudSyncPreferences, pullCloudData, replaceCloudSyncPreferences, type SyncPreferences } from "@/lib/cloud-sync";
 
 /** The date key `back` days before the given one. Derived from the key rather
  *  than from `new Date()`, so callers stay pure functions of their input. */
@@ -24,7 +25,7 @@ function weekKeys(today: string): string[] {
   return Array.from({ length: 7 }, (_, index) => keyBefore(today, index));
 }
 
-const HASH_SCREENS: Record<string, Screen> = { "#ideas": "ideas", "#data": "data", "#week": "week", "#first-run": "onboard" };
+const HASH_SCREENS: Record<string, Screen> = { "#ideas": "ideas", "#data": "data", "#week": "week", "#year": "year", "#habits": "habits", "#settings": "settings" };
 
 const FAILED: Message = {
   isUser: false,
@@ -45,6 +46,28 @@ function greeting(hour = new Date().getHours()) {
 }
 
 export default function App() {
+  return <AuthGate>{(account) => <ProductApp account={account} />}</AuthGate>;
+}
+
+function ensureDefaultHabits(saved: SavedData): SavedData {
+  if (!saved.profile || saved.settings.habitsConfigured) return saved;
+  const habits = rankActions(saved.profile).map((action) => ({ id: `habit-${action.id}`, actionId: action.id, title: action.title, paused: false }));
+  return { ...saved, habits, settings: { ...saved.settings, habitsConfigured: true } };
+}
+
+const SYNC_OPTIONS: { key: keyof SyncPreferences; label: string }[] = [
+  { key: "profile", label: "Profile answers" },
+  { key: "habits", label: "Habit pool" },
+  { key: "completions", label: "Completions and swaps" },
+  { key: "settings", label: "Settings" },
+  { key: "conversations", label: "Conversations for seven days" },
+];
+
+function SyncConsent({ preferences, onChange, onContinue }: { preferences: SyncPreferences; onChange: (next: SyncPreferences) => void; onContinue: () => void }) {
+  return <main className="auth-page"><section className="auth-card"><div className="auth-brand">goodlife<span>.ai</span></div><h1>Choose what syncs</h1><p className="auth-copy">The AI always stays on this device. Choose which account information can follow you to your other devices.</p><div className="sync-options">{SYNC_OPTIONS.map((option) => <label className="auth-check" key={option.key}><input type="checkbox" checked={preferences[option.key]} onChange={(event) => onChange({ ...preferences, [option.key]: event.target.checked })} /> {option.label}</label>)}</div><button type="button" className="btn btn-primary auth-submit" onClick={onContinue}>Save and continue</button></section></main>;
+}
+
+function ProductApp({ account }: { account: { user: User; signOut: () => Promise<void> } }) {
   const [data, setData] = useState<SavedData>(emptyData);
   const [loaded, setLoaded] = useState(false);
   const [screen, setScreen] = useState<Screen>("today");
@@ -54,8 +77,20 @@ export default function App() {
   const [pending, setPending] = useState<Message | null>(null);
   const [lastAsk, setLastAsk] = useState("");
   const [selectedDay, setSelectedDay] = useState("");
-  const [clearArmed, setClearArmed] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [cloudReady, setCloudReady] = useState(false);
+  const [syncConfirmed, setSyncConfirmed] = useState(false);
+  const [syncPreferences, setSyncPreferences] = useState<SyncPreferences>(defaultSyncPreferences);
+  const [cloudClearPending, setCloudClearPending] = useState(false);
   const msgsRef = useRef<Message[]>([]);
+  const syncStarted = useRef(false);
+  const syncSuspended = useRef(false);
+  const mutateData = useCallback((updater: (current: SavedData) => SavedData) => {
+    setData((current) => {
+      const next = updater(current);
+      return next === current ? current : { ...next, updatedAt: Date.now() };
+    });
+  }, []);
 
   const startModel = useCallback(async () => {
     if (!webgpuSupported()) {
@@ -76,51 +111,133 @@ export default function App() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const saved = load();
+      const saved = ensureDefaultHabits(load(account.user.id));
       setData(saved);
-      setLoaded(true);
+      if (localStorage.getItem(`goodlife-pending-cloud-clear-${account.user.id}`)) {
+        syncSuspended.current = true;
+        setCloudClearPending(true);
+      }
+      const consentRaw = localStorage.getItem(`goodlife-sync-consent-${account.user.id}`);
+      let localPreferences: SyncPreferences | null = null;
+      if (consentRaw) {
+        try { localPreferences = { ...defaultSyncPreferences, ...JSON.parse(consentRaw) as Partial<SyncPreferences> }; } catch { /* ask again */ }
+      }
+      void getCloudSyncPreferences(account.user.id).catch(() => null).then((cloudPreferences) => {
+        const chosen = cloudPreferences ?? localPreferences;
+        if (chosen) { setSyncPreferences(chosen); localStorage.setItem(`goodlife-sync-consent-${account.user.id}`, JSON.stringify(chosen)); setSyncConfirmed(true); }
+        setLoaded(true);
+      });
       const fromHash = HASH_SCREENS[window.location.hash];
       if (fromHash) setScreen(fromHash);
-      else if (!saved.profile) setScreen("onboard");
+      else if (!saved.profile) setScreen("data");
       if (saved.modelOn) void startModel();
       else if (!webgpuSupported()) setStatus("unsupported");
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [startModel]);
+  }, [account.user.id, startModel]);
 
-  useEffect(() => { if (loaded) save(data); }, [data, loaded]);
-  useEffect(() => { msgsRef.current = data.msgs; }, [data.msgs]);
+  useEffect(() => {
+    if (!cloudClearPending) return;
+    const pendingKey = `goodlife-pending-cloud-clear-${account.user.id}`;
+    const retry = () => {
+      if (!navigator.onLine) return;
+      void clearCloudData(account.user.id).then(() => {
+        localStorage.removeItem(pendingKey);
+        setCloudClearPending(false);
+        setData((current) => {
+          if (current.profile) syncSuspended.current = false;
+          return { ...current };
+        });
+      }).catch(() => undefined);
+    };
+    window.addEventListener("online", retry);
+    retry();
+    return () => window.removeEventListener("online", retry);
+  }, [account.user.id, cloudClearPending]);
+
+  useEffect(() => {
+    if (!loaded || !syncConfirmed || syncStarted.current || syncSuspended.current) return;
+    syncStarted.current = true;
+    void pullCloudData(account.user.id, data, syncPreferences)
+      .then((synced) => setData(ensureDefaultHabits(synced)))
+      .catch(() => undefined)
+      .finally(() => setCloudReady(true));
+  }, [account.user.id, data, loaded, syncConfirmed, syncPreferences]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    save(data, account.user.id);
+    if (!cloudReady || !syncConfirmed || syncSuspended.current) return;
+    const sync = () => {
+      if (!navigator.onLine || syncSuspended.current) return;
+      const snapshot = load(account.user.id);
+      const dirtyKey = `goodlife-sync-preferences-dirty-${account.user.id}`;
+      if (localStorage.getItem(dirtyKey)) {
+        void replaceCloudSyncPreferences(account.user.id, syncPreferences)
+          .then(() => pullCloudData(account.user.id, snapshot, syncPreferences))
+          .then((synced) => { localStorage.removeItem(dirtyKey); if (synced.updatedAt !== snapshot.updatedAt) setData(ensureDefaultHabits(synced)); })
+          .catch(() => undefined);
+        return;
+      }
+      void pullCloudData(account.user.id, snapshot, syncPreferences).then((synced) => {
+        if (synced.updatedAt !== snapshot.updatedAt) setData(ensureDefaultHabits(synced));
+      }).catch(() => undefined);
+    };
+    const timer = window.setTimeout(sync, 800);
+    window.addEventListener("online", sync);
+    return () => { window.clearTimeout(timer); window.removeEventListener("online", sync); };
+  }, [account.user.id, cloudReady, data, loaded, syncConfirmed, syncPreferences]);
+  const activeConversation = data.conversations.find((conversation) => conversation.id === data.activeConversationId) ?? data.conversations[0];
+  const activeMsgs = activeConversation?.msgs ?? data.msgs;
+  useEffect(() => { msgsRef.current = activeMsgs; }, [activeMsgs]);
   useEffect(() => { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined); }, []);
+  useEffect(() => { document.documentElement.dataset.fontSize = data.settings.fontSize; }, [data.settings.fontSize]);
 
   const profile: Profile = data.profile ?? emptyProfile;
   const today = dateKey();
+
+  const actionsForDate = useCallback((key: string): Action[] => {
+    if (!data.settings.habitsConfigured) return [];
+    const swapped = data.swaps[key] ?? [];
+    const countsBefore = completionCountsBefore(data.days, key);
+    const pool = data.habits.filter((habit) => !habit.paused).map((habit) => {
+      const source = habit.actionId ? getAction(habit.actionId) : undefined;
+      return source ? { ...source, title: habit.title } : { id: habit.id, kicker: "Your habit", title: habit.title, body: habit.title, short: habit.title };
+    });
+    const picked = pool.filter((action) => !hasGraduated(countsBefore, action.id) && !swapped.includes(action.id)).slice(0, 3);
+    for (const action of pool) {
+      if (picked.length >= 3) break;
+      if (!swapped.includes(action.id) && !picked.some((item) => item.id === action.id)) picked.push(action);
+    }
+    return picked;
+  }, [data.days, data.habits, data.settings.habitsConfigured, data.swaps]);
 
   // Everything below is derived, not stored. What was shown on a given day is
   // a pure function of the profile, the completions before it, and that day's
   // swaps, so there's no bookkeeping to keep in sync and no setState in an
   // effect to write it.
-  const actions = useMemo(() => actionsServedOn(profile, data.days, data.swaps, today), [profile, data.days, data.swaps, today]);
+  const actions = useMemo(() => actionsForDate(today), [actionsForDate, today]);
   const counts = useMemo(() => completionCounts(data.days), [data.days]);
   const doneToday = useMemo(() => data.days[today] ?? [], [data.days, today]);
   const streak = useMemo(() => streakFrom(data.days), [data.days]);
   const graduated = useMemo(() => graduatedActions(counts), [counts]);
 
   const week = useMemo(
-    () => weekKeys(today).map((key) => ({ key, ids: actionsServedOn(profile, data.days, data.swaps, key).map((action) => action.id) })),
-    [profile, data.days, data.swaps, today],
+    () => weekKeys(today).map((key) => ({ key, ids: actionsForDate(key).map((action) => action.id) })),
+    [actionsForDate, today],
   );
   const servedByDay = useMemo(() => Object.fromEntries(week.map(({ key, ids }) => [key, ids])), [week]);
   const days = useMemo(() => recentDays(data.days, servedByDay), [data.days, servedByDay]);
-  const planDay = useMemo(
-    () => planDayIndex(profile, data.days, data.swaps, today, (back) => keyBefore(today, back)),
-    [profile, data.days, data.swaps, today],
-  );
+  const threadRef = useScrollToLatest(`${activeMsgs.length}:${pending?.text ?? ""}`);
 
-  const threadRef = useScrollToLatest(`${data.msgs.length}:${pending?.text ?? ""}`);
+  const updateActiveConversation = (current: SavedData, msgs: Message[], title?: string): SavedData => {
+    const id = current.activeConversationId;
+    const conversations = current.conversations.map((conversation) => conversation.id === id ? { ...conversation, msgs, title: title ?? conversation.title } : conversation);
+    return { ...current, conversations, msgs, activeConversationId: id };
+  };
+  const push = (message: Message) => mutateData((current) => updateActiveConversation(current, [...(current.conversations.find((conversation) => conversation.id === current.activeConversationId)?.msgs ?? current.msgs), message], message.isUser ? message.text.slice(0, 42) : undefined));
 
-  const push = (message: Message) => setData((current) => ({ ...current, msgs: [...current.msgs, message] }));
-
-  const toggleAction = (id: string) => setData((current) => {
+  const toggleAction = (id: string) => mutateData((current) => {
     const existing = current.days[today] ?? [];
     const next = existing.includes(id) ? existing.filter((item) => item !== id) : [...existing, id];
     return { ...current, days: { ...current.days, [today]: next } };
@@ -128,7 +245,7 @@ export default function App() {
 
   /** Push one action aside for today. The next-best candidate takes the slot,
    *  and the swap is remembered so a reload doesn't undo it. */
-  const swapAction = (id: string) => setData((current) => {
+  const swapAction = (id: string) => mutateData((current) => {
     const existing = current.swaps[today] ?? [];
     if (existing.includes(id)) return current;
     return { ...current, swaps: { ...current.swaps, [today]: [...existing, id] } };
@@ -141,7 +258,7 @@ export default function App() {
     if (!message || pending) return;
 
     // Snapshotted before the new turn is pushed, and read from a ref because
-    // `data.msgs` in this closure is a render behind. Our own error copy is
+    // The active conversation in this closure is a render behind. Our own error copy is
     // dropped: it's app text, not something the coach said.
     const history = msgsRef.current
       .filter((msg) => !msg.retryable)
@@ -207,20 +324,22 @@ export default function App() {
 
   const retry = () => {
     if (!lastAsk) return;
-    setData((current) => ({ ...current, msgs: current.msgs.filter((msg) => !msg.retryable) }));
+    mutateData((current) => updateActiveConversation(current, (current.conversations.find((conversation) => conversation.id === current.activeConversationId)?.msgs ?? current.msgs).filter((msg) => !msg.retryable)));
     void send(lastAsk, true);
   };
 
-  /** Two clicks, because the thread is the only copy and clearing it is not
-   *  undoable. The label carries the question rather than a dialog. */
   const newConversation = () => {
-    if (!clearArmed) {
-      if (data.msgs.length === 0) { setScreen("today"); return; }
-      setClearArmed(true);
-      return;
-    }
-    setClearArmed(false);
-    setData((current) => ({ ...current, msgs: [] }));
+    if (pending) { stopGeneration(); setPending(null); }
+    const conversation: Conversation = { id: `conversation-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, date: today, title: "New conversation", msgs: [] };
+    mutateData((current) => ({ ...current, conversations: [...current.conversations, conversation], activeConversationId: conversation.id, msgs: [] }));
+    setLastAsk("");
+    setScreen("today");
+  };
+
+  const openConversation = (id: string) => {
+    if (!data.conversations.some((conversation) => conversation.id === id)) return;
+    if (pending) { stopGeneration(); setPending(null); }
+    mutateData((current) => ({ ...current, activeConversationId: id, msgs: current.conversations.find((conversation) => conversation.id === id)?.msgs ?? [] }));
     setLastAsk("");
     setScreen("today");
   };
@@ -241,20 +360,24 @@ export default function App() {
   };
 
   const clearAll = () => {
-    clear();
+    syncSuspended.current = true;
+    localStorage.setItem(`goodlife-pending-cloud-clear-${account.user.id}`, "1");
+    setCloudClearPending(true);
+    clear(account.user.id);
     void unloadModel();
-    setData(emptyData);
+    setData(freshData());
     setStatus(webgpuSupported() ? "off" : "unsupported");
-    setScreen("onboard");
+    setScreen("data");
   };
 
   const finishFirstRun = (next: Profile) => {
-    setData((current) => ({ ...current, profile: next }));
+    const habits = rankActions(next).map((action) => ({ id: `habit-${action.id}`, actionId: action.id, title: action.title, paused: false }));
+    mutateData((current) => ({ ...current, profile: next, habits, settings: { ...current.settings, habitsConfigured: true } }));
+    if (!cloudClearPending) syncSuspended.current = false;
     setScreen("today");
   };
 
-  const needsFirstRun = loaded && !data.profile && (screen === "today" || screen === "week");
-  const current: Screen = needsFirstRun ? "onboard" : screen;
+  const current: Screen = loaded && !data.profile && screen !== "data" ? "data" : screen;
   const dateLabel = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
   // Counted against the rows actually shown, so completions carried over from
   // an earlier set of three can't push this past the total.
@@ -262,8 +385,17 @@ export default function App() {
   const countLabel = `${doneCount} of ${actions.length} done`;
 
   const viewedDay = selectedDay || today;
-  const viewedServed = (servedByDay[viewedDay] ?? []).map(getAction).filter((action) => action !== undefined);
-  const planAction = actions[0];
+  const viewedServed = actionsForDate(viewedDay);
+  const habitPool = rankActions(profile);
+  const habits = data.habits;
+
+  if (loaded && !syncConfirmed) {
+    return <SyncConsent preferences={syncPreferences} onChange={setSyncPreferences} onContinue={() => {
+      localStorage.setItem(`goodlife-sync-consent-${account.user.id}`, JSON.stringify(syncPreferences));
+      localStorage.setItem(`goodlife-sync-preferences-dirty-${account.user.id}`, "1");
+      setSyncConfirmed(true);
+    }} />;
+  }
 
   return (
     <div className="app-shell">
@@ -272,12 +404,14 @@ export default function App() {
         setScreen={setScreen}
         days={days}
         streak={streak}
+        conversations={data.conversations}
+        activeConversationId={data.activeConversationId}
         onOpenDay={openDay}
+        onOpenConversation={openConversation}
         onNewConversation={newConversation}
-        clearArmed={clearArmed}
       />
       <MobileHeader
-        title={current === "onboard" ? "First run" : current === "ideas" ? "Ideas" : current === "data" ? "You" : current === "week" ? "Week" : "Today"}
+        title={current === "ideas" ? "Ideas" : current === "data" ? "Your Data" : current === "week" ? "Your week" : current === "year" ? "Your year" : current === "habits" ? "Habits" : current === "settings" ? "Settings" : "Your day"}
         meta={current === "today" ? `${doneCount} of ${actions.length} · ${streak} ${streak === 1 ? "day" : "days"} back` : ""}
       />
 
@@ -288,7 +422,7 @@ export default function App() {
           <div className="screen">
             <div className="screen-header">
               <span className="screen-meta">{dateLabel} · {countLabel}</span>
-              <span className="screen-avatar" aria-hidden="true"><Icon name="user" size={15} /></span>
+              <AccountButton label={account.user.email ?? "Account"} menuOpen={accountMenuOpen} onToggleMenu={() => setAccountMenuOpen((open) => !open)} onClick={() => { setAccountMenuOpen(false); setScreen("settings"); }} onSignOut={() => void account.signOut()} />
             </div>
             {/* A log, so a screen reader announces each finished reply. The
                 streaming bubble is excluded below, or it would read out every
@@ -301,10 +435,8 @@ export default function App() {
                 counts={counts}
                 onToggle={toggleAction}
                 onSwap={swapAction}
-                onAsk={(text) => void send(text)}
-                canAsk={status === "ready"}
               />
-              <MessageList msgs={data.msgs} onRetry={retry} />
+              <MessageList msgs={activeMsgs} onRetry={retry} />
               {pending && (
                 <div aria-hidden="true">
                   <CoachMessage text={pending.text} note={pending.text ? pending.note : undefined} typing />
@@ -327,23 +459,43 @@ export default function App() {
           </div>
         )}
 
-        {loaded && current === "onboard" && <FirstRun profile={data.profile} onFinish={finishFirstRun} />}
         {loaded && current === "ideas" && <Ideas />}
         {loaded && current === "week" && (
           <Week
             days={days}
             selected={viewedDay}
             onSelect={setSelectedDay}
-            planAction={planAction}
-            planDay={planDay}
             served={viewedServed}
             done={data.days[viewedDay] ?? []}
+            onToggle={(id) => mutateData((currentData) => {
+              const existing = currentData.days[viewedDay] ?? [];
+              const next = existing.includes(id) ? existing.filter((item) => item !== id) : [...existing, id];
+              return { ...currentData, days: { ...currentData.days, [viewedDay]: next } };
+            })}
             graduated={graduated}
           />
         )}
+        {loaded && current === "year" && <Year days={data.days} />}
+        {loaded && current === "habits" && <Habits
+          habits={habits}
+          actions={habitPool}
+          onAdd={(action) => mutateData((currentData) => ({ ...currentData, habits: [...currentData.habits, { id: getAction(action.id) ? `habit-${action.id}-${Date.now()}` : action.id, actionId: getAction(action.id) ? action.id : undefined, title: action.title, paused: false }], settings: { ...currentData.settings, habitsConfigured: true } }))}
+          onRename={(id, title) => mutateData((currentData) => ({ ...currentData, habits: (currentData.habits.length ? currentData.habits : habits).map((habit) => habit.id === id ? { ...habit, title } : habit) }))}
+          onReorder={(id, direction) => mutateData((currentData) => {
+            const list = [...(currentData.habits.length ? currentData.habits : habits)];
+            const index = list.findIndex((habit) => habit.id === id);
+            const next = index + direction;
+            if (index < 0 || next < 0 || next >= list.length) return currentData;
+            [list[index], list[next]] = [list[next], list[index]];
+            return { ...currentData, habits: list };
+          })}
+          onTogglePause={(id) => mutateData((currentData) => ({ ...currentData, habits: (currentData.habits.length ? currentData.habits : habits).map((habit) => habit.id === id ? { ...habit, paused: !habit.paused } : habit) }))}
+          onDelete={(id) => mutateData((currentData) => ({ ...currentData, habits: (currentData.habits.length ? currentData.habits : habits).filter((habit) => habit.id !== id) }))}
+        />}
         {loaded && current === "data" && (
-          <YourData status={status} progress={progress} onToggleModel={toggleModel} onExport={() => exportFile(data)} onClear={clearAll} />
+          <YourData profile={data.profile} onFinishProfile={finishFirstRun} status={status} progress={progress} onToggleModel={toggleModel} onExport={() => exportFile(data)} onClear={clearAll} cloudClearPending={cloudClearPending} />
         )}
+        {loaded && current === "settings" && <Settings fontSize={data.settings.fontSize} onFontSize={(fontSize) => mutateData((currentData) => ({ ...currentData, settings: { ...currentData.settings, fontSize } }))} syncPreferences={syncPreferences} onSyncPreferences={(next) => { setSyncPreferences(next); localStorage.setItem(`goodlife-sync-consent-${account.user.id}`, JSON.stringify(next)); localStorage.setItem(`goodlife-sync-preferences-dirty-${account.user.id}`, "1"); }} accountLabel={account.user.email} onSignOut={() => void account.signOut()} />}
       </main>
 
       <TabBar screen={current} setScreen={setScreen} />

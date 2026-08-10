@@ -5,7 +5,7 @@ import { Dandelion } from "@/components/marks";
 const STEPS = [
   { title: "You describe a good day", body: "The ordinary kind, not the holiday version. Then you pick up to three things that matter right now and say where you're stuck." },
   { title: "You get three small steps", body: "Ranked from your answers by plain, testable logic. No black box deciding whether you should build an emergency fund." },
-  { title: "You download the coach", body: "Conversation runs a small model on your own hardware, so it starts with a one-time download rather than an account. No download, no chat, and the app says so instead of quietly answering with something else." },
+  { title: "You download the coach", body: "The AI runs locally on your computer or phone after a one-time download. Chat starts when the model is ready." },
 ];
 
 const ROUTING = [
@@ -34,7 +34,7 @@ export default function Site() {
 
       <section className="site-hero">
         <div className="site-hero-copy">
-          <span className="site-eyebrow">Runs on your device. No account, no server.</span>
+          <span className="site-eyebrow">The only ethical AI coach. Runs locally.</span>
           <h1>A coach for the life you&apos;re actually living.</h1>
           <p>You don&apos;t need another list of everything that&apos;s wrong. You need to know what to do first, and you need it small enough to do on a normal Tuesday. Answer a few honest questions and I&apos;ll give you three.</p>
           <div className="site-cta">
@@ -43,8 +43,8 @@ export default function Site() {
           </div>
           <div className="site-stats">
             <div className="site-stat"><strong>3</strong><span>starting steps, not thirty</span></div>
-            <div className="site-stat"><strong>0</strong><span>messages sent to a server</span></div>
-            <div className="site-stat"><strong>7</strong><span>days in the first plan</span></div>
+            <div className="site-stat"><strong>7</strong><span>days before synced conversations disappear</span></div>
+            <div className="site-stat"><strong>365</strong><span>days visible in Your Year</span></div>
           </div>
         </div>
         <CoachDemo />
@@ -66,8 +66,8 @@ export default function Site() {
       <section className="site-privacy" id="privacy">
         <div className="site-privacy-copy">
           <span className="site-eyebrow terracotta">Privacy, the boring literal kind</span>
-          <h2>Your answers never leave the browser you typed them into.</h2>
-          <p>There&apos;s no inference server and no API key. The coach downloads once and runs on your own hardware, which is why it can&apos;t start until the download finishes. That&apos;s the honest limit: a small local model is less capable than a big cloud one. So the guidance lives in a plain markdown playbook the model routes against, your words are fenced off from the instructions so they can&apos;t rewrite them, and the disclaimers get added after the model is done rather than asked of it.</p>
+          <h2>Your answers stay local by default.</h2>
+          <p>The AI runs locally on your computer or phone. Only the account information you choose to sync is stored online, and conversations disappear after seven days.</p>
           <div className="site-chips">
             <span>Local storage only</span>
             <span>JSON export</span>
@@ -90,7 +90,7 @@ export default function Site() {
       <section className="site-close">
         <div>
           <h2>Start with one honest answer.</h2>
-          <p>No account, no email, no trial. Close the tab and nothing follows you.</p>
+          <p>Use it locally, or sync only the account information you choose.</p>
         </div>
         <Link className="btn btn-primary" href="/app">Describe a good day</Link>
       </section>

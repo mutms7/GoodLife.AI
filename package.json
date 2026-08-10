@@ -10,7 +10,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "test": "npm run build && npm run typecheck && node --experimental-strip-types --test tests/rendered-html.test.mjs tests/advice.test.mjs tests/prompt.test.mjs tests/playbook.test.mjs tests/storage.test.mjs tests/desktop.test.mjs",
+    "test": "npm run build && npm run typecheck && node --experimental-strip-types --test tests/rendered-html.test.mjs tests/advice.test.mjs tests/prompt.test.mjs tests/playbook.test.mjs tests/storage.test.mjs tests/desktop.test.mjs tests/account-sync.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
     "desktop:fetch-model": "node desktop/fetch-model.mjs",
@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.84",
+    "@supabase/supabase-js": "^2.112.2",
     "electron-updater": "^6.6.2",
     "next": "16.3.0",
     "react": "19.2.6",
@@ -35,10 +36,10 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
-    "eslint": "9.39.4",
-    "eslint-config-next": "16.3.0",
     "electron": "37.10.3",
     "electron-builder": "26.15.3",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.3.0",
     "nitro": "^3.0.260610-beta",
     "react-server-dom-webpack": "19.2.6",
     "tailwindcss": "4.3.3",
@@ -51,7 +52,9 @@
   "build": {
     "appId": "ai.goodlife.desktop",
     "productName": "GoodLife.AI",
-    "directories": { "output": "release" },
+    "directories": {
+      "output": "release"
+    },
     "files": [
       "desktop/**/*",
       "!desktop/model/**/*",
@@ -61,11 +64,24 @@
       "node_modules/electron-updater/**/*"
     ],
     "extraResources": [
-      { "from": "desktop/model", "to": "model", "filter": ["**/*"] }
+      {
+        "from": "desktop/model",
+        "to": "model",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
       "icon": "public/icon-512.png",
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "artifactName": "GoodLife.AI-Setup.exe"
     },
     "nsis": {

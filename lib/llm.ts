@@ -21,6 +21,7 @@ type DesktopBridge = {
   isDesktop?: boolean;
   modelBasePath?: string;
   modelWasmPath?: string;
+  onAuthCallback?: (handler: (url: string) => void) => () => void;
 };
 
 declare global {

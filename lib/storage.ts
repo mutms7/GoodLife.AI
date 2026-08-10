@@ -9,11 +9,31 @@ export { dateKey, daysBetween, recentDays, shiftDays, streakFrom, type DayLog, t
  *  offer another attempt instead of leaving a dead end. */
 export type Message = { isUser: boolean; text: string; note?: string; retryable?: boolean };
 
+export type Conversation = {
+  id: string;
+  date: string;
+  title: string;
+  msgs: Message[];
+};
+
+export type Habit = {
+  id: string;
+  actionId?: string;
+  title: string;
+  paused: boolean;
+};
+
+export type FontSize = "small" | "medium" | "large";
+
 export type SavedData = {
-  version: 3;
+  version: 4;
+  updatedAt: number;
   profile: Profile | null;
   days: DayLog;
+  /** Legacy active-thread mirror. New writes are kept in conversations. */
   msgs: Message[];
+  conversations: Conversation[];
+  activeConversationId: string;
   modelOn: boolean;
   /** Action ids pushed aside for a given day, so a swap survives a reload.
    *
@@ -21,12 +41,23 @@ export type SavedData = {
    *  day of the seven-day sequence you're on, are both recomputed from the
    *  profile plus these, so there's nothing stored to drift out of sync. */
   swaps: DayLog;
+  habits: Habit[];
+  settings: { fontSize: FontSize; habitsConfigured: boolean };
 };
 
-const KEY = "goodlife-local-v3";
-const LEGACY_KEYS = ["goodlife-local-v2", "goodlife-local-v1"];
+const KEY = "goodlife-local-v4";
+const LEGACY_CLAIM_KEY = "goodlife-legacy-claimed";
+const LEGACY_KEYS = ["goodlife-local-v3", "goodlife-local-v2", "goodlife-local-v1"];
+function storageKey(userId?: string) { return userId ? `${KEY}-${encodeURIComponent(userId)}` : KEY; }
 
-export const emptyData: SavedData = { version: 3, profile: null, days: {}, msgs: [], modelOn: false, swaps: {} };
+const newConversation = (date = dateKey()): Conversation => ({ id: `conversation-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, date, title: "New conversation", msgs: [] });
+
+export function freshData(): SavedData {
+  const conversation = newConversation();
+  return { version: 4, updatedAt: 0, profile: null, days: {}, msgs: [], conversations: [conversation], activeConversationId: conversation.id, modelOn: false, swaps: {}, habits: [], settings: { fontSize: "medium", habitsConfigured: false } };
+}
+
+export const emptyData: SavedData = freshData();
 
 function readPriorities(value: unknown): Priority[] {
   if (!Array.isArray(value)) return [];
@@ -57,6 +88,36 @@ function readMessages(value: unknown): Message[] {
     .slice(-120);
 }
 
+function readConversations(value: unknown): Conversation[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
+    .map((item, index) => ({
+      id: typeof item.id === "string" && item.id ? item.id.slice(0, 120) : `conversation-${index}`,
+      date: typeof item.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.date) ? item.date : dateKey(),
+      title: typeof item.title === "string" && item.title ? item.title.slice(0, 120) : "Conversation",
+      msgs: readMessages(item.msgs),
+    }))
+    .slice(-100);
+}
+
+function readHabits(value: unknown): Habit[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
+    .map((item, index) => ({
+      id: typeof item.id === "string" && item.id ? item.id.slice(0, 120) : `habit-${index}`,
+      actionId: typeof item.actionId === "string" ? item.actionId.slice(0, 120) : undefined,
+      title: typeof item.title === "string" && item.title.trim() ? item.title.slice(0, 200) : "Habit",
+      paused: item.paused === true,
+    }))
+    .slice(0, 100);
+}
+
+function readFontSize(value: unknown): FontSize {
+  return value === "small" || value === "large" ? value : "medium";
+}
+
 function readDays(value: unknown): DayLog {
   if (!value || typeof value !== "object") return {};
   const out: DayLog = {};
@@ -85,13 +146,24 @@ function migrateLegacy(): SavedData | null {
     if (!raw) continue;
     try {
       const saved = JSON.parse(raw) as Record<string, unknown>;
-      if (saved.version === 2 || saved.msgs || saved.days) {
+      if (saved.version === 4 || saved.version === 3 || saved.msgs || saved.days) {
+        const conversations = readConversations(saved.conversations);
+        const legacyMsgs = readMessages(saved.msgs);
+        if (conversations.length === 0) conversations.push({ ...newConversation(), msgs: legacyMsgs });
+        const activeConversationId = typeof saved.activeConversationId === "string" && conversations.some((item) => item.id === saved.activeConversationId)
+          ? saved.activeConversationId
+          : conversations[conversations.length - 1].id;
         return {
           ...emptyData,
           profile: readProfile(saved.profile),
           days: readDays(saved.days),
-          msgs: readMessages(saved.msgs),
+          msgs: conversations.find((item) => item.id === activeConversationId)?.msgs ?? legacyMsgs,
+          conversations,
+          activeConversationId,
           modelOn: Boolean(saved.modelOn),
+          swaps: readDays(saved.swaps),
+          habits: readHabits(saved.habits),
+          settings: { fontSize: readFontSize((saved.settings as { fontSize?: unknown } | undefined)?.fontSize), habitsConfigured: (saved.settings as { habitsConfigured?: unknown } | undefined)?.habitsConfigured === true },
         };
       }
       const v1 = saved as { profile?: { vision?: string; priorities?: string[] }; completionDays?: string[]; chat?: { role?: string; text?: string }[] };
@@ -99,11 +171,15 @@ function migrateLegacy(): SavedData | null {
       const priorities = (v1.profile.priorities ?? []).map((id) => LEGACY_PRIORITIES[id]).filter(Boolean).slice(0, 3);
       const days: DayLog = {};
       for (const day of v1.completionDays ?? []) if (/^\d{4}-\d{2}-\d{2}$/.test(day)) days[day] = ["carried-over"];
+      const migratedMessages = readMessages((v1.chat ?? []).map((item) => ({ isUser: item.role === "user", text: item.text })));
+      const migratedConversation = { ...newConversation(), msgs: migratedMessages };
       return {
         ...emptyData,
         profile: { goodDay: typeof v1.profile.vision === "string" ? v1.profile.vision : "", priorities, checks: emptyProfile.checks },
         days,
-        msgs: readMessages((v1.chat ?? []).map((item) => ({ isUser: item.role === "user", text: item.text }))),
+        msgs: migratedMessages,
+        conversations: [migratedConversation],
+        activeConversationId: migratedConversation.id,
       };
     } catch {
       // Try the next key rather than losing everything to one bad blob.
@@ -112,18 +188,40 @@ function migrateLegacy(): SavedData | null {
   return null;
 }
 
-export function load(): SavedData {
+export function load(userId?: string): SavedData {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return migrateLegacy() ?? emptyData;
+    const raw = localStorage.getItem(storageKey(userId));
+    if (!raw) {
+      if (userId && !localStorage.getItem(LEGACY_CLAIM_KEY)) {
+        const unscoped = localStorage.getItem(KEY);
+        const migrated = unscoped ? JSON.parse(unscoped) as Partial<SavedData> : migrateLegacy();
+        if (migrated) {
+          localStorage.setItem(LEGACY_CLAIM_KEY, userId);
+          save(migrated as SavedData, userId);
+          return load(userId);
+        }
+      }
+      return emptyData;
+    }
     const saved = JSON.parse(raw) as Partial<SavedData>;
+    const conversations = readConversations(saved.conversations);
+    const legacyMsgs = readMessages(saved.msgs);
+    if (conversations.length === 0) conversations.push({ ...newConversation(), msgs: legacyMsgs });
+    const activeConversationId = typeof saved.activeConversationId === "string" && conversations.some((item) => item.id === saved.activeConversationId)
+      ? saved.activeConversationId
+      : conversations[conversations.length - 1].id;
     return {
-      version: 3,
+      version: 4,
+      updatedAt: typeof saved.updatedAt === "number" && Number.isFinite(saved.updatedAt) ? saved.updatedAt : 0,
       profile: readProfile(saved.profile),
       days: readDays(saved.days),
-      msgs: readMessages(saved.msgs),
+      msgs: conversations.find((item) => item.id === activeConversationId)?.msgs ?? legacyMsgs,
+      conversations,
+      activeConversationId,
       modelOn: Boolean(saved.modelOn),
       swaps: readDays(saved.swaps),
+      habits: readHabits(saved.habits),
+      settings: { fontSize: readFontSize((saved.settings as { fontSize?: unknown } | undefined)?.fontSize), habitsConfigured: (saved.settings as { habitsConfigured?: unknown } | undefined)?.habitsConfigured === true },
     };
   } catch {
     // Malformed JSON or storage turned off: start fresh in memory.
@@ -131,17 +229,17 @@ export function load(): SavedData {
   }
 }
 
-export function save(data: SavedData) {
+export function save(data: SavedData, userId?: string) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(data));
+    localStorage.setItem(storageKey(userId), JSON.stringify(data));
   } catch {
     // Quota or private mode. The app keeps working for this session.
   }
 }
 
-export function clear() {
+export function clear(userId?: string) {
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(storageKey(userId));
     for (const key of LEGACY_KEYS) localStorage.removeItem(key);
   } catch {
     // Nothing to do if storage is unavailable.

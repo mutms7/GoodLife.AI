@@ -21,10 +21,12 @@ test("server-renders the chat-first marketing page", async () => {
   assert.match(html, /<title>GoodLife\.AI \| a coach for the life you&#x27;re actually living<\/title>/i);
   assert.match(html, /A coach for the life you(?:&#x27;|')re actually living/);
   assert.match(html, /See the shape of an answer/);
-  assert.match(html, /Your answers never leave the browser you typed them into/);
+  assert.match(html, /The only ethical AI coach/);
+  assert.match(html, /AI runs locally on your computer or phone/);
+  assert.match(html, /conversations disappear after seven days/);
   // The page has to say the download is required, not optional.
   assert.match(html, /You download the coach/);
-  assert.match(html, /can(?:&#x27;|')t start until the download finishes/);
+  assert.match(html, /Chat starts when the model is ready/);
   assert.match(html, /manifest\.webmanifest/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton|codex-preview/i);
 });

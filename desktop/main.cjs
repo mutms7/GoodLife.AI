@@ -13,6 +13,18 @@ app.commandLine.appendSwitch("enable-unsafe-webgpu");
 app.commandLine.appendSwitch("enable-features", "Vulkan,UseSkiaRenderer");
 
 let localServer;
+let pendingAuthCallback;
+
+function authCallbackFrom(argv) {
+  return argv.find((value) => /^goodlife:\/\/auth-callback/i.test(value));
+}
+
+function deliverAuthCallback(url) {
+  if (!url) return;
+  const [window] = BrowserWindow.getAllWindows();
+  if (window?.webContents) window.webContents.send("auth-callback", url);
+  else pendingAuthCallback = url;
+}
 
 async function startRenderer() {
   if (localServer) return localServer.url;
@@ -69,6 +81,12 @@ async function createWindow() {
     },
   });
   window.once("ready-to-show", () => window.show());
+  window.webContents.once("did-finish-load", () => {
+    if (pendingAuthCallback) {
+      window.webContents.send("auth-callback", pendingAuthCallback);
+      pendingAuthCallback = undefined;
+    }
+  });
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\//i.test(url)) void shell.openExternal(url);
     return { action: "deny" };
@@ -84,7 +102,11 @@ const hasSingleInstance = app.requestSingleInstanceLock();
 if (!hasSingleInstance) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
+  app.setAsDefaultProtocolClient("goodlife");
+  app.on("open-url", (event, url) => { event.preventDefault(); deliverAuthCallback(url); });
+  pendingAuthCallback = authCallbackFrom(process.argv);
+  app.on("second-instance", (_event, argv) => {
+    deliverAuthCallback(authCallbackFrom(argv));
     const [window] = BrowserWindow.getAllWindows();
     if (window) {
       if (window.isMinimized()) window.restore();
