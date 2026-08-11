@@ -4,6 +4,10 @@
 
 [Download the latest Windows installer](https://github.com/mutms7/GoodLife.AI/releases/latest/download/GoodLife.AI-Setup.exe) (`GoodLife.AI-Setup.exe`). The installer includes the local coach and can run offline after setup.
 
+## Website
+
+[Open GoodLife.AI in your browser](https://goodlife-daily-guide.w-chenyin.chatgpt.site).
+
 GoodLife.AI is **the only ethical AI coach**: the AI runs locally on your computer or phone. Only the account information you choose to sync is stored online, and conversations disappear after seven days.
 
 The app turns a few honest answers into three small steps for today and a simple habit tracker. It is a reflection and education tool, not medical, legal, mental-health, or financial advice.
