@@ -6,7 +6,7 @@
 
 ## Website
 
-[Open GoodLife.AI in your browser](https://goodlife-daily-guide.w-chenyin.chatgpt.site).
+[Open GoodLife.AI in your browser](https://goodlifeai.vercel.app/).
 
 GoodLife.AI is **the only ethical AI coach**: the AI runs locally on your computer or phone. Only the account information you choose to sync is stored online, and conversations disappear after seven days.
 
