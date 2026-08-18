@@ -103,23 +103,23 @@ export function PlanCard({ actions, done, counts, onToggle, onSwap }: {
 
 const GATE_COPY: Record<Exclude<ModelStatus, "ready">, { title: string; body: string; action: string | null }> = {
   off: {
-    title: "Download the coach to start talking",
-    body: `The coach is ${MODEL_LABEL}, and it runs on your device rather than on a server. That means the download comes first: ${MODEL_DOWNLOAD_LABEL}, once per browser, then it's cached. Your actions above work without it.`,
+    title: "Download the coach to start",
+    body: `The ${MODEL_LABEL} coach runs on your device, not a server. Download ${MODEL_DOWNLOAD_LABEL} once per browser. Your actions above work without it.`,
     action: "Download the coach",
   },
   loading: {
     title: "Getting the coach ready",
-    body: "The weights are downloading into this browser's cache. You can leave this tab open and come back to it.",
+    body: "The model is downloading into this browser. You can leave this tab open while it finishes.",
     action: null,
   },
   error: {
     title: "The coach didn't load",
-    body: "That can happen if the download was interrupted or the GPU refused the model. Nothing was sent anywhere, so trying again is free.",
+    body: "The download may have stopped, or this device may have refused the model. Nothing was sent anywhere. Try again when you are ready.",
     action: "Try again",
   },
   unsupported: {
-    title: "This browser can't run the coach",
-    body: "Conversation needs WebGPU, and this browser doesn't offer it. A recent Chrome, Edge or Safari on a machine with a GPU will work. Your actions and history still work here.",
+    title: "This browser cannot run the coach",
+    body: "Conversation needs WebGPU, which this browser does not offer. Try a recent Chrome, Edge or Safari on a computer with a GPU. Your actions and history still work here.",
     action: null,
   },
 };
@@ -136,13 +136,13 @@ const DESKTOP_GATE_COPY: Record<Exclude<ModelStatus, "ready">, { title: string; 
     action: null,
   },
   error: {
-    title: "The local SLM didn't start",
-    body: "The bundled model could not start on this computer. Nothing was sent anywhere, so you can safely try again.",
+    title: "The local SLM did not start",
+    body: "The model included with the app could not start on this computer. Nothing was sent anywhere. You can try again.",
     action: "Try again",
   },
   unsupported: {
-    title: "This computer can't run the coach",
-    body: "Conversation needs WebGPU, and it is not available on this computer. Your actions and history still work here.",
+    title: "This computer cannot run the coach",
+    body: "Conversation needs WebGPU, which is not available here. Your actions and history still work.",
     action: null,
   },
 };

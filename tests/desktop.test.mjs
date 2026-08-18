@@ -40,6 +40,11 @@ test("desktop auth callbacks wait for the renderer and fonts have a web-safe MIM
   assert.match(main, /app\.isPackaged[\s\S]*desktop\/model/);
   assert.match(preload, /ipcRenderer\.send\("auth-renderer-ready"\)/);
   assert.match(server, /"\.woff2": "font\/woff2"/);
+  assert.match(main, /Menu\.setApplicationMenu\(null\)/);
+  assert.match(main, /before-input-event/);
+  assert.match(main, /titleBarOverlay/);
+  assert.match(preload, /fullscreen-toggle/);
+  assert.match(preload, /fullscreen-changed/);
 });
 
 test("desktop auth returns through a connected browser page", async () => {

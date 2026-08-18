@@ -22,6 +22,9 @@ type DesktopBridge = {
   modelBasePath?: string;
   modelWasmPath?: string;
   onAuthCallback?: (handler: (url: string) => void) => () => void;
+  toggleFullscreen?: () => void;
+  getFullscreen?: () => Promise<boolean>;
+  onFullscreenChange?: (handler: (fullscreen: boolean) => void) => () => void;
 };
 
 declare global {

@@ -7,7 +7,7 @@ import "@fontsource/figtree/latin-700.css";
 import "./globals.css";
 
 const TITLE = "GoodLife.AI | a coach for the life you're actually living";
-const DESCRIPTION = "The only ethical AI coach. Runs locally on your computer or phone, with optional account sync and seven-day conversation deletion.";
+const DESCRIPTION = "A private AI coach that runs locally on your computer or phone, with optional account sync and seven-day conversation deletion.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

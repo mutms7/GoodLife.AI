@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "@/components/marks";
 import { GRADUATE_AT, type Action, type Profile } from "@/lib/advice";
 import type { ModelStatus } from "@/lib/llm";
@@ -22,7 +22,7 @@ export function Ideas() {
     <div className="screen-scroll">
       <div className="screen-lead">
         <h3>Where the ideas come from</h3>
-        <p>These are prompts to test, not rules to obey. If one doesn&apos;t fit your life, that&apos;s useful information too.</p>
+        <p>Try these ideas out. Keep what fits and leave the rest.</p>
       </div>
       <div className="idea-grid">
         {IDEAS.map((idea) => (
@@ -75,7 +75,7 @@ export function YourData({ profile, onFinishProfile, status, progress, onToggleM
       {!profile && <FirstRun profile={profile} onFinish={onFinishProfile} />}
       <div className="screen-lead" style={{ maxWidth: 700 }}>
         <h3>Your data</h3>
-        <p>Your model and AI work stay on this device. Your profile, habits, completions and settings sync to your account. Conversations are deleted after seven days.</p>
+        <p>Your model and coaching stay on this device. Your profile, habits, completions and settings sync only if you choose them. Conversations are deleted after seven days.</p>
       </div>
 
       <div className="data-stack">
@@ -83,7 +83,7 @@ export function YourData({ profile, onFinishProfile, status, progress, onToggleM
         <div className="data-card">
           <div className="data-text">
             <span className="data-title">Export everything as JSON</span>
-              <span className="data-sub">One file: profile, habits, completions and conversation history.</span>
+              <span className="data-sub">One file with your profile, habits, completions and conversation history.</span>
           </div>
           <button type="button" className="btn btn-primary" onClick={onExport}>Download</button>
         </div>
@@ -106,7 +106,7 @@ export function YourData({ profile, onFinishProfile, status, progress, onToggleM
         <div className="data-danger">
           <div className="data-text">
             <span className="data-title">Start over</span>
-            <span className="data-sub">{armed ? "This clears your good day, your plans, your streak and the whole thread. There's no undo, so export first if you might want it." : "Deletes the profile and history on this device. It can't be undone."}</span>
+            <span className="data-sub">{armed ? "This clears your good day, plans, streak and whole thread. There is no undo, so export first if you might need it." : "Deletes your profile and history on this device. It cannot be undone."}</span>
           </div>
           {armed ? (
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -139,7 +139,7 @@ export function Week({ days, selected, onSelect, served, done, onToggle, graduat
     <div className="screen-scroll">
       <div className="screen-lead">
         <h3>Your days</h3>
-        <p>A returning streak, not a score. A day counts once you check anything off, and one miss is just a Tuesday.</p>
+        <p>This is a record, not a score. A day counts when you check something off. Missing once is normal.</p>
       </div>
 
       <div className="week-days">
@@ -185,7 +185,7 @@ export function Week({ days, selected, onSelect, served, done, onToggle, graduat
         <>
           <div className="screen-lead">
             <h4>Off the list</h4>
-            <p>Checked off {GRADUATE_AT} times, so they stopped being suggestions. That&apos;s the point of the streak.</p>
+            <p>Checked off {GRADUATE_AT} times, so they are now part of your routine.</p>
           </div>
           <div className="week-graduated">
             {graduated.map((action) => (
@@ -201,18 +201,96 @@ export function Week({ days, selected, onSelect, served, done, onToggle, graduat
   );
 }
 
-export function Year({ days, today = new Date() }: { days: Record<string, string[]>; today?: Date }) {
-  const cells = Array.from({ length: 365 }, (_, index) => {
+type YearConversation = { date: string; msgs: { isUser: boolean; text: string }[] };
+
+export function Year({ days, conversations = [], habits = [], today = new Date() }: {
+  days: Record<string, string[]>;
+  conversations?: YearConversation[];
+  habits?: Habit[];
+  today?: Date;
+}) {
+  const cells = useMemo(() => Array.from({ length: 365 }, (_, index) => {
     const date = new Date(today);
     date.setDate(today.getDate() - (364 - index));
     const key = dateKey(date);
-    return { key, count: days[key]?.length ?? 0 };
-  });
+    return { key, date, count: days[key]?.length ?? 0 };
+  }), [days, today]);
+  const [selectedKey, setSelectedKey] = useState(() => dateKey(today));
+  const selected = cells.find((cell) => cell.key === selectedKey) ?? cells[cells.length - 1];
+  const activeDays = cells.filter((cell) => cell.count > 0).length;
+  const totalCompletions = cells.reduce((sum, cell) => sum + cell.count, 0);
+  const bestStreak = cells.reduce((best, cell, index) => {
+    if (cell.count === 0) return best;
+    let length = 1;
+    for (let cursor = index - 1; cursor >= 0 && cells[cursor].count > 0; cursor -= 1) length += 1;
+    return Math.max(best, length);
+  }, 0);
+  const visibleKeys = useMemo(() => new Set(cells.map((cell) => cell.key)), [cells]);
+  const visibleConversations = useMemo(() => conversations.filter((conversation) => visibleKeys.has(conversation.date)), [conversations, visibleKeys]);
+  const conversationDays = new Set(visibleConversations.map((conversation) => conversation.date)).size;
+  const messageCount = visibleConversations.reduce((sum, conversation) => sum + conversation.msgs.length, 0);
+  const titles = new Map(habits.map((habit) => [habit.actionId ?? habit.id, habit.title]));
+  const selectedConversations = conversations.filter((conversation) => conversation.date === selected.key);
+  const selectedMessages = selectedConversations.reduce((sum, conversation) => sum + conversation.msgs.length, 0);
+  const selectedTitles = (days[selected.key] ?? []).map((id) => titles.get(id)).filter((title): title is string => Boolean(title));
+  const selectedLabel = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(selected.date);
+  const monthStats = useMemo(() => {
+    const groups = new Map<string, { key: string; year: number; baseLabel: string; active: number; completions: number }>();
+    cells.forEach((cell) => {
+      const key = `${cell.date.getFullYear()}-${cell.date.getMonth()}`;
+      const current = groups.get(key) ?? { key, year: cell.date.getFullYear(), baseLabel: new Intl.DateTimeFormat("en", { month: "short" }).format(cell.date), active: 0, completions: 0 };
+      current.active += cell.count > 0 ? 1 : 0;
+      current.completions += cell.count;
+      groups.set(key, current);
+    });
+    const entries = [...groups.values()];
+    const labelCounts = new Map<string, number>();
+    entries.forEach((entry) => labelCounts.set(entry.baseLabel, (labelCounts.get(entry.baseLabel) ?? 0) + 1));
+    return entries.map((entry) => ({ ...entry, label: (labelCounts.get(entry.baseLabel) ?? 0) > 1 ? `${entry.baseLabel} ${entry.year}` : entry.baseLabel }));
+  }, [cells]);
+
   return (
-    <div className="screen-scroll">
-      <div className="screen-lead"><h3>Your year</h3><p>A quiet view of the last 365 days. This grid is read-only; your day and week are where you make changes.</p></div>
-      <div className="year-grid" aria-label="365 day completion grid">
-        {cells.map((cell) => <span key={cell.key} className={`year-cell level-${Math.min(cell.count, 3)}`} title={`${cell.key}: ${cell.count} complete`} aria-label={`${cell.key}, ${cell.count} complete`} />)}
+    <div className="screen-scroll year-screen">
+      <div className="screen-lead">
+        <h3>Your year</h3>
+        <p>See the days you showed up, then click any square to see what you logged.</p>
+      </div>
+      <div className="year-stats" aria-label="Year summary">
+        <div className="year-stat"><strong>{activeDays}</strong><span>days with a completion</span></div>
+        <div className="year-stat"><strong>{totalCompletions}</strong><span>habits checked off</span></div>
+        <div className="year-stat"><strong>{bestStreak}</strong><span>day best streak</span></div>
+        <div className="year-stat"><strong>{messageCount}</strong><span>messages across {conversationDays} days</span></div>
+      </div>
+      <div className="year-layout">
+        <div className="year-grid-wrap">
+          <div className="year-grid-heading"><strong>Last 365 days</strong><span>Light means a quieter day</span></div>
+          <div className="year-grid" aria-label="365 day completion grid">
+            {cells.map((cell) => (
+              <button
+                type="button"
+                key={cell.key}
+                className={`year-cell level-${Math.min(cell.count, 3)} ${cell.key === selected.key ? "is-selected" : ""}`}
+                onClick={() => setSelectedKey(cell.key)}
+                aria-label={`${cell.key}, ${cell.count} ${cell.count === 1 ? "completion" : "completions"}`}
+                aria-pressed={cell.key === selected.key}
+                title={`${cell.key}: ${cell.count} ${cell.count === 1 ? "completion" : "completions"}`}
+              />
+            ))}
+          </div>
+          <div className="year-legend" aria-hidden="true"><span>None</span><i className="level-0" /><i className="level-1" /><i className="level-2" /><i className="level-3" /><span>3+</span></div>
+        </div>
+        <aside className="year-detail" aria-live="polite">
+          <span className="year-detail-kicker">Selected day</span>
+          <h4>{selectedLabel}</h4>
+          {selected.count > 0 ? <>
+            <strong>{selected.count} {selected.count === 1 ? "completion" : "completions"}</strong>
+            {selectedTitles.length > 0 && <ul>{selectedTitles.map((title) => <li key={title}>{title}</li>)}</ul>}
+          </> : <p>No habits checked off.</p>}
+          <p className="year-detail-messages">{selectedMessages ? `${selectedMessages} ${selectedMessages === 1 ? "message" : "messages"} that day.` : "No conversation that day."}</p>
+        </aside>
+      </div>
+      <div className="year-months" aria-label="Monthly totals">
+        {monthStats.map((month) => <div className="year-month" key={month.key}><strong>{month.label}</strong><span>{month.active} active days</span><span>{month.completions} check{month.completions === 1 ? "" : "s"}</span></div>)}
       </div>
     </div>
   );
@@ -237,7 +315,7 @@ export function Habits({ habits, actions, onAdd, onRename, onReorder, onTogglePa
   };
   return (
     <div className="screen-scroll">
-      <div className="screen-lead"><h3>Habits</h3><p>Keep the practices that matter, in the order that makes sense for your life. Pause one when the season changes.</p></div>
+      <div className="screen-lead"><h3>Habits</h3><p>Keep the practices that matter in the order that works for you. Pause one when life changes.</p></div>
       <div className="habit-stack">
         {habits.map((habit, index) => (
           <div className={`habit-row ${habit.paused ? "is-paused" : ""}`} key={habit.id}>
@@ -259,9 +337,9 @@ export function Habits({ habits, actions, onAdd, onRename, onReorder, onTogglePa
 export function Settings({ fontSize, onFontSize, syncPreferences, onSyncPreferences, accountLabel = "Account", onSignOut }: { fontSize: "small" | "medium" | "large"; onFontSize: (size: "small" | "medium" | "large") => void; syncPreferences: SyncPreferences; onSyncPreferences: (next: SyncPreferences) => void; accountLabel?: string; onSignOut?: () => void }) {
   return (
     <div className="screen-scroll">
-      <div className="screen-lead"><h3>Settings</h3><p>Small choices that make GoodLife fit the way you use it.</p></div>
+      <div className="screen-lead"><h3>Settings</h3><p>Adjust GoodLife to suit the way you use it.</p></div>
       <div className="settings-card"><strong>Font size</strong><div className="settings-options">{(["small", "medium", "large"] as const).map((size) => <button type="button" key={size} className={`btn btn-secondary ${fontSize === size ? "is-selected" : ""}`} onClick={() => onFontSize(size)} aria-pressed={fontSize === size}>{size[0].toUpperCase() + size.slice(1)}</button>)}</div></div>
-      <div className="settings-card column"><strong>Account sync</strong><p>The AI never syncs. Choose which account details do.</p><div className="sync-options">{(["profile", "habits", "completions", "settings", "conversations"] as const).map((key) => <label className="auth-check" key={key}><input type="checkbox" checked={syncPreferences[key]} onChange={(event) => onSyncPreferences({ ...syncPreferences, [key]: event.target.checked })} /> {key === "conversations" ? "Conversations for seven days" : key[0].toUpperCase() + key.slice(1)}</label>)}</div></div>
+      <div className="settings-card column"><strong>Account sync</strong><p>The AI never syncs. Choose which account details to share.</p><div className="sync-options">{(["profile", "habits", "completions", "settings", "conversations"] as const).map((key) => <label className="auth-check" key={key}><input type="checkbox" checked={syncPreferences[key]} onChange={(event) => onSyncPreferences({ ...syncPreferences, [key]: event.target.checked })} /> {key === "conversations" ? "Conversations for seven days" : key[0].toUpperCase() + key.slice(1)}</label>)}</div></div>
       <div className="settings-card"><strong>Account</strong><p>{accountLabel} · synced securely across signed-in devices.</p>{onSignOut && <button type="button" className="btn btn-secondary" onClick={onSignOut}>Sign out</button>}</div>
     </div>
   );

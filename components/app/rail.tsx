@@ -20,6 +20,7 @@ const NAV: { id: Screen; label: string }[] = [
 const TABS: { id: Screen; label: string; icon: IconName }[] = [
   { id: "today", label: "Today", icon: "sun" },
   { id: "week", label: "Week", icon: "calendar" },
+  { id: "year", label: "Year", icon: "calendar" },
   { id: "ideas", label: "Ideas", icon: "lightbulb" },
   { id: "data", label: "You", icon: "user" },
 ];
@@ -87,7 +88,7 @@ export function Rail({ screen, setScreen, days, streak, conversations = [], acti
                   aria-expanded={expanded}
                   aria-controls={`rail-conversations-${day.key}`}
                 >
-                  <span className="rail-day-label"><span className={`rail-disclosure ${expanded ? "is-open" : ""}`} aria-hidden="true">›</span>{day.label}</span>
+                  <span className="rail-day-label"><span className={`rail-disclosure ${expanded ? "is-open" : ""}`} aria-hidden="true" />{day.label}</span>
                   <span className={`rail-count ${day.done ? "" : "is-skipped"}`}>{day.done ? `${day.done}/${day.served}` : "skipped"}</span>
                 </button>
                 {expanded && (

@@ -6,21 +6,21 @@ import { CHECK_LEVELS, CHECK_ROWS, PRIORITIES, emptyProfile, type CheckKey, type
 
 const QUESTIONS = [
   {
-    title: "Describe a good day. The ordinary kind.",
-    sub: "Not the holiday version. A Tuesday you'd be glad to repeat. Whatever you write here is the thing I'll keep pointing back to.",
+    title: "Describe a good day",
+    sub: "Think of a normal day you would be glad to repeat. We will use it as a reference later.",
   },
   {
     title: "What matters most right now?",
-    sub: "Pick up to three. Three is the limit because everything can't be first, and I'd rather you make progress on a few things than a list of nine.",
+    sub: "Pick up to three. Keeping the list short makes it easier to follow.",
   },
   {
     title: "How's each of these going, honestly?",
-    sub: "No scoring, no streak riding on it. I just need to know where things are stuck so today's three aren't generic.",
+    sub: "There is no score. This helps make today's three steps fit your life.",
   },
 ];
 
 const COUNT_WORDS = ["None", "One", "Two", "Three"];
-const COUNT_NOTES = ["", "One is a fine place to start. I'd rather your plan be short than tidy.", "You can leave it at two. I'd rather your plan be short than tidy.", "That's the cap, and it's on purpose. I'd rather your plan be short than tidy."];
+const COUNT_NOTES = ["", "One is enough to start.", "Two is enough to start.", "Three is the limit so the plan stays manageable."];
 
 export function FirstRun({ profile, onFinish }: { profile: Profile | null; onFinish: (next: Profile) => void }) {
   const [step, setStep] = useState(1);

@@ -6,6 +6,7 @@ import { AuthGate } from "@/components/auth/auth-gate";
 import { AccountButton, MobileHeader, Rail, TabBar, type Screen } from "@/components/app/rail";
 import { Habits, Ideas, Settings, Week, Year, YourData } from "@/components/app/screens";
 import { Composer, CoachMessage, MessageList, ModelGate, PlanCard, useScrollToLatest } from "@/components/app/thread";
+import { Icon } from "@/components/marks";
 import { completionCounts, completionCountsBefore, emptyProfile, getAction, graduatedActions, hasGraduated, rankActions, type Action, type Profile } from "@/lib/advice";
 import { dayStarter, responseTitle } from "@/lib/conversation-ui";
 import { noteFor } from "@/lib/playbook";
@@ -30,20 +31,20 @@ const HASH_SCREENS: Record<string, Screen> = { "#ideas": "ideas", "#data": "data
 
 const FAILED: Message = {
   isUser: false,
-  text: "That one didn't come out right, so I'd rather not show you half an answer.",
+  text: "That answer did not come out right, so I left it out. Try again.",
   retryable: true,
 };
 
 const BLOCKED: Message = {
   isUser: false,
-  text: "That answer was heading somewhere I won't go, which is telling you what to take. I can talk about the habit side of it, or a clinician can talk about the rest.",
+  text: "I cannot help with that part. I can talk about the habit side, or a clinician can help with the rest.",
   retryable: true,
 };
 
 function greeting(hour = new Date().getHours()) {
-  if (hour < 12) return "Morning";
-  if (hour < 18) return "Afternoon";
-  return "Evening";
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
 }
 
 export default function App() {
@@ -65,7 +66,14 @@ const SYNC_OPTIONS: { key: keyof SyncPreferences; label: string }[] = [
 ];
 
 function SyncConsent({ preferences, onChange, onContinue }: { preferences: SyncPreferences; onChange: (next: SyncPreferences) => void; onContinue: () => void }) {
-  return <main className="auth-page"><section className="auth-card"><div className="auth-brand">goodlife<span>.ai</span></div><h1>Choose what syncs</h1><p className="auth-copy">The AI always stays on this device. Choose which account information can follow you to your other devices.</p><div className="sync-options">{SYNC_OPTIONS.map((option) => <label className="auth-check" key={option.key}><input type="checkbox" checked={preferences[option.key]} onChange={(event) => onChange({ ...preferences, [option.key]: event.target.checked })} /> {option.label}</label>)}</div><button type="button" className="btn btn-primary auth-submit" onClick={onContinue}>Save and continue</button></section></main>;
+  return <main className="auth-page"><section className="auth-card"><div className="auth-brand">goodlife<span>.ai</span></div><h1>Choose what syncs</h1><p className="auth-copy">The AI stays on this device. Choose which account details can follow you to other devices.</p><div className="sync-options">{SYNC_OPTIONS.map((option) => <label className="auth-check" key={option.key}><input type="checkbox" checked={preferences[option.key]} onChange={(event) => onChange({ ...preferences, [option.key]: event.target.checked })} /> {option.label}</label>)}</div><button type="button" className="btn btn-primary auth-submit" onClick={onContinue}>Save and continue</button></section></main>;
+}
+
+function DesktopFullscreenButton({ fullscreen, onToggle }: { fullscreen: boolean; onToggle: () => void }) {
+  return <button type="button" className="desktop-fullscreen" onClick={onToggle} aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
+    <Icon name={fullscreen ? "minimize" : "maximize"} size={15} />
+    <span>{fullscreen ? "Exit fullscreen" : "Fullscreen"}</span>
+  </button>;
 }
 
 function ProductApp({ account }: { account: { user: User; signOut: () => Promise<void> } }) {
@@ -84,6 +92,7 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
   const [syncConfirmed, setSyncConfirmed] = useState(false);
   const [syncPreferences, setSyncPreferences] = useState<SyncPreferences>(defaultSyncPreferences);
   const [cloudClearPending, setCloudClearPending] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const msgsRef = useRef<Message[]>([]);
   const syncStarted = useRef(false);
   const syncSuspended = useRef(false);
@@ -194,6 +203,13 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
   useEffect(() => { msgsRef.current = activeMsgs; }, [activeMsgs]);
   useEffect(() => { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined); }, []);
   useEffect(() => { document.documentElement.dataset.fontSize = data.settings.fontSize; }, [data.settings.fontSize]);
+  useEffect(() => {
+    if (!desktop) return;
+    const bridge = window.goodlifeDesktop;
+    const state = bridge?.getFullscreen?.();
+    if (state) void state.then((value) => { if (typeof value === "boolean") setFullscreen(value); });
+    return bridge?.onFullscreenChange?.((value) => setFullscreen(value));
+  }, [desktop]);
 
   const profile: Profile = data.profile ?? emptyProfile;
   const today = dateKey();
@@ -400,7 +416,11 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${desktop ? "is-desktop" : ""}`}>
+      {desktop && <>
+        <div className="desktop-drag-strip" aria-hidden="true" />
+        <div className="desktop-window-actions"><DesktopFullscreenButton fullscreen={fullscreen} onToggle={() => window.goodlifeDesktop?.toggleFullscreen?.()} /></div>
+      </>}
       <Rail
         screen={current}
         setScreen={setScreen}
@@ -484,7 +504,7 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
             graduated={graduated}
           />
         )}
-        {loaded && current === "year" && <Year days={data.days} />}
+        {loaded && current === "year" && <Year days={data.days} conversations={data.conversations} habits={habits} />}
         {loaded && current === "habits" && <Habits
           habits={habits}
           actions={habitPool}
