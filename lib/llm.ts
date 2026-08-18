@@ -32,6 +32,10 @@ declare global {
 
 export type ModelStatus = "off" | "loading" | "ready" | "error" | "unsupported";
 
+export function isDesktopApp() {
+  return typeof window !== "undefined" && Boolean(window.goodlifeDesktop?.isDesktop);
+}
+
 type Delta = { choices?: { delta?: { content?: string }; message?: { content?: string } }[] };
 type Engine = {
   chat: {
@@ -57,12 +61,13 @@ export function webgpuSupported() {
 }
 
 function desktopAppConfig(webllm: typeof import("@mlc-ai/web-llm")) {
-  if (typeof window === "undefined" || !window.goodlifeDesktop?.isDesktop) return undefined;
+  if (!isDesktopApp()) return undefined;
+  const desktop = window.goodlifeDesktop!;
   // Electron serves the same React app from a fixed localhost origin. Only
   // the model record changes: its weights and wasm are installer resources,
   // while the web build keeps WebLLM's maintained remote defaults.
-  const modelBasePath = new URL(window.goodlifeDesktop.modelBasePath ?? "/model/resolve/main/", window.location.origin).href;
-  const modelWasmPath = new URL(window.goodlifeDesktop.modelWasmPath ?? DESKTOP_MODEL_WASM, window.location.origin).href;
+  const modelBasePath = new URL(desktop.modelBasePath ?? "/model/resolve/main/", window.location.origin).href;
+  const modelWasmPath = new URL(desktop.modelWasmPath ?? DESKTOP_MODEL_WASM, window.location.origin).href;
   return {
     ...webllm.prebuiltAppConfig,
     model_list: [{

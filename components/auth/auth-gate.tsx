@@ -32,7 +32,7 @@ export function AuthGate({ children }: { children: (account: { user: User; signO
       if (event === "PASSWORD_RECOVERY") setRecovering(true);
     });
     const dispose = window.goodlifeDesktop?.onAuthCallback?.((url) => {
-      setAuthNotice("Finishing sign-in...");
+      setAuthNotice("Connected. Starting GoodLife.AI...");
       void acceptDesktopAuthCallback(url)
         .then((next) => { if (active) { setSession(next); setAuthNotice(""); } })
         .catch((error) => {
@@ -97,7 +97,7 @@ function AuthForm({ session, notice, onClearNotice }: { session: Session | null;
       if (desktop) {
         if (!data.url) throw new Error("Google sign-in could not be opened. Please try again.");
         window.open(data.url, "_blank", "noopener,noreferrer");
-        setMessage("Finish signing in in your browser, then return here. You can retry if you cancel.");
+        setMessage("Finish signing in in your browser. It will say Connected when you can return here.");
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Google sign-in did not start. Try again.");

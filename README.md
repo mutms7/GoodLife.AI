@@ -12,9 +12,13 @@ GoodLife.AI is **the only ethical AI coach**: the AI runs locally on your comput
 
 The app turns a few honest answers into three small steps for today and a simple habit tracker. It is a reflection and education tool, not medical, legal, mental-health, or financial advice.
 
+![GoodLife.AI home page](docs/images/goodlife-home.png)
+
+![GoodLife.AI daily coach](docs/images/goodlife-daily-coach.png)
+
 ## Privacy and limits
 
-The coach model runs on your device after a one-time download. Your local profile, progress, and chat stay in your browser unless you choose to sync account information. Synced conversations are deleted after seven days. Clearing browser data can remove local data, so use the built-in JSON export if you want a copy.
+The coach model runs on your device after a one-time browser download, or directly from the bundled Windows app. Your local profile, progress, and chat stay on the device unless you choose to sync account information. Synced conversations are deleted after seven days.
 
 Conversation needs a WebGPU-compatible browser and the model download. Without it, the planner still works but chat is unavailable.
 

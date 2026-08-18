@@ -46,7 +46,15 @@ const MODEL_STATUS: Record<ModelStatus, string> = {
   unsupported: "This browser can't run it. WebGPU isn't available, so conversation is off.",
 };
 
-export function YourData({ profile, onFinishProfile, status, progress, onToggleModel, onExport, onClear, cloudClearPending = false }: {
+const DESKTOP_MODEL_STATUS: Record<ModelStatus, string> = {
+  off: "Bundled with the app and ready to start.",
+  loading: "Starting local SLM",
+  ready: "Local SLM is running",
+  error: "The bundled local SLM did not start.",
+  unsupported: "This computer cannot run the local SLM because WebGPU is unavailable.",
+};
+
+export function YourData({ profile, onFinishProfile, status, progress, onToggleModel, onExport, onClear, cloudClearPending = false, desktop = false }: {
   profile: Profile | null;
   onFinishProfile: (next: Profile) => void;
   status: ModelStatus;
@@ -55,9 +63,12 @@ export function YourData({ profile, onFinishProfile, status, progress, onToggleM
   onExport: () => void;
   onClear: () => void;
   cloudClearPending?: boolean;
+  desktop?: boolean;
 }) {
   const [armed, setArmed] = useState(false);
-  const buttonLabel = status === "ready" ? "Delete the download" : status === "loading" ? "Downloading" : status === "error" ? "Try again" : "Download the model";
+  const buttonLabel = desktop
+    ? status === "loading" ? "Starting" : status === "error" || status === "off" ? "Start local SLM" : null
+    : status === "ready" ? "Delete the download" : status === "loading" ? "Downloading" : status === "error" ? "Try again" : "Download the model";
 
   return (
     <div className="screen-scroll">
@@ -81,14 +92,14 @@ export function YourData({ profile, onFinishProfile, status, progress, onToggleM
           <div className="data-card-top">
             <div className="data-text" style={{ maxWidth: 520 }}>
               <span className="data-title">The local AI coach</span>
-              <span className="data-sub">Qwen2.5 1.5B, quantized, running in your browser through WebGPU. About a 1.6 GB download, once per browser profile. Conversation needs it, so there&apos;s no coach until it&apos;s here. Your actions, habits and ideas all work without it. Deleting the download frees the disk space and turns conversation back off.</span>
+              <span className="data-sub">{desktop ? "Qwen2.5 1.5B, quantized and included with the Windows app. It starts locally through WebGPU and does not download again when you reopen GoodLife.AI." : "Qwen2.5 1.5B, quantized, running in your browser through WebGPU. About a 1.6 GB download, once per browser profile. Conversation needs it, so there is no coach until it is here. Deleting the download frees the disk space and turns conversation back off."}</span>
             </div>
-            <button type="button" className="btn btn-secondary" onClick={onToggleModel} disabled={status === "loading" || status === "unsupported"}>{buttonLabel}</button>
+            {buttonLabel && <button type="button" className="btn btn-secondary" onClick={onToggleModel} disabled={status === "loading" || status === "unsupported"}>{buttonLabel}</button>}
           </div>
           {status === "loading" && <div className="data-progress"><span style={{ width: `${Math.round(progress * 100)}%` }} /></div>}
           <div className={`data-status ${status === "ready" ? "" : status === "error" || status === "unsupported" ? "is-error" : "is-off"}`}>
             <i />
-            {status === "loading" ? `${MODEL_STATUS.loading}, ${Math.round(progress * 100)}%` : MODEL_STATUS[status]}
+            {status === "loading" ? `${desktop ? DESKTOP_MODEL_STATUS.loading : MODEL_STATUS.loading}, ${Math.round(progress * 100)}%` : (desktop ? DESKTOP_MODEL_STATUS : MODEL_STATUS)[status]}
           </div>
         </div>
 

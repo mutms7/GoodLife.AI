@@ -9,7 +9,7 @@ import { Composer, CoachMessage, MessageList, ModelGate, PlanCard, useScrollToLa
 import { completionCounts, completionCountsBefore, emptyProfile, getAction, graduatedActions, hasGraduated, rankActions, type Action, type Profile } from "@/lib/advice";
 import { dayStarter, responseTitle } from "@/lib/conversation-ui";
 import { noteFor } from "@/lib/playbook";
-import { MODEL_LABEL, chooseTopic, deleteModelCache, loadModel, stopGeneration, streamReply, unloadModel, webgpuSupported, type ModelStatus } from "@/lib/llm";
+import { MODEL_LABEL, chooseTopic, deleteModelCache, isDesktopApp, loadModel, stopGeneration, streamReply, unloadModel, webgpuSupported, type ModelStatus } from "@/lib/llm";
 import { clear, dateKey, emptyData, exportFile, freshData, load, recentDays, save, streakFrom, type Conversation, type Message, type SavedData } from "@/lib/storage";
 import { clearCloudData, defaultSyncPreferences, getCloudSyncPreferences, pullCloudData, replaceCloudSyncPreferences, type SyncPreferences } from "@/lib/cloud-sync";
 
@@ -69,6 +69,7 @@ function SyncConsent({ preferences, onChange, onContinue }: { preferences: SyncP
 }
 
 function ProductApp({ account }: { account: { user: User; signOut: () => Promise<void> } }) {
+  const desktop = isDesktopApp();
   const [data, setData] = useState<SavedData>(emptyData);
   const [loaded, setLoaded] = useState(false);
   const [screen, setScreen] = useState<Screen>("today");
@@ -131,11 +132,11 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
       const fromHash = HASH_SCREENS[window.location.hash];
       if (fromHash) setScreen(fromHash);
       else if (!saved.profile) setScreen("data");
-      if (saved.modelOn) void startModel();
+      if (desktop || saved.modelOn) void startModel();
       else if (!webgpuSupported()) setStatus("unsupported");
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [account.user.id, startModel]);
+  }, [account.user.id, desktop, startModel]);
 
   useEffect(() => {
     if (!cloudClearPending) return;
@@ -274,7 +275,7 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
     // it. That makes this gate the whole safety story before the download
     // finishes: nothing gets coached at, but nothing gets recognised either.
     if (status !== "ready") {
-      push({ isUser: false, text: "I can't answer that one yet. The coach runs on your device, so the model has to finish downloading first.", note: noteFor(undefined, "model-off") });
+      push({ isUser: false, text: desktop ? "I can't answer that one yet. The local SLM is still starting." : "I can't answer that one yet. The coach runs on your device, so the model has to finish downloading first.", note: noteFor(undefined, "model-off") });
       return;
     }
 
@@ -463,7 +464,7 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
                   busy={Boolean(pending)}
                 />
               )
-              : <ModelGate status={status} progress={progress} onStart={() => void startModel()} />}
+              : <ModelGate status={status} progress={progress} onStart={() => void startModel()} desktop={desktop} />}
           </div>
         )}
 
@@ -501,7 +502,7 @@ function ProductApp({ account }: { account: { user: User; signOut: () => Promise
           onDelete={(id) => mutateData((currentData) => ({ ...currentData, habits: (currentData.habits.length ? currentData.habits : habits).filter((habit) => habit.id !== id) }))}
         />}
         {loaded && current === "data" && (
-          <YourData profile={data.profile} onFinishProfile={finishFirstRun} status={status} progress={progress} onToggleModel={toggleModel} onExport={() => exportFile(data)} onClear={clearAll} cloudClearPending={cloudClearPending} />
+          <YourData profile={data.profile} onFinishProfile={finishFirstRun} status={status} progress={progress} onToggleModel={toggleModel} onExport={() => exportFile(data)} onClear={clearAll} cloudClearPending={cloudClearPending} desktop={desktop} />
         )}
         {loaded && current === "settings" && <Settings fontSize={data.settings.fontSize} onFontSize={(fontSize) => mutateData((currentData) => ({ ...currentData, settings: { ...currentData.settings, fontSize } }))} syncPreferences={syncPreferences} onSyncPreferences={(next) => { setSyncPreferences(next); localStorage.setItem(`goodlife-sync-consent-${account.user.id}`, JSON.stringify(next)); localStorage.setItem(`goodlife-sync-preferences-dirty-${account.user.id}`, "1"); }} accountLabel={account.user.email} onSignOut={() => void account.signOut()} />}
       </main>

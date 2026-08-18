@@ -40,7 +40,7 @@ export function FirstRun({ profile, onFinish }: { profile: Profile | null; onFin
     <div className="screen">
       <div className="screen-header">
         <span className="screen-meta">Step {step} of 3</span>
-        <span className="screen-meta">Nothing here leaves your browser</span>
+        <span className="screen-meta">Nothing here leaves this device</span>
       </div>
 
       <div className="run-body">

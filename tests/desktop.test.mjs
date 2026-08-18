@@ -41,3 +41,27 @@ test("desktop auth callbacks wait for the renderer and fonts have a web-safe MIM
   assert.match(preload, /ipcRenderer\.send\("auth-renderer-ready"\)/);
   assert.match(server, /"\.woff2": "font\/woff2"/);
 });
+
+test("desktop auth returns through a connected browser page", async () => {
+  const [supabase, bridge, gate] = await Promise.all([
+    readFile(new URL("../lib/supabase.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/auth/desktop/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/auth/auth-gate.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(supabase, /https:\/\/goodlifeai\.vercel\.app\/auth\/desktop/);
+  assert.match(bridge, /goodlife:\/\/auth-callback/);
+  assert.match(bridge, /"Connected"/);
+  assert.match(gate, /Connected\. Starting GoodLife\.AI/);
+});
+
+test("desktop starts its bundled model without browser download copy", async () => {
+  const [appPage, thread, screens] = await Promise.all([
+    readFile(new URL("../app/app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/app/thread.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/app/screens.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(appPage, /desktop \|\| saved\.modelOn/);
+  assert.match(thread, /Starting the local SLM/);
+  assert.match(thread, /Nothing is being downloaded from the internet/);
+  assert.match(screens, /included with the Windows app/);
+});

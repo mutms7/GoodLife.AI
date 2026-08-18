@@ -5,6 +5,7 @@ import { withAuthTimeout } from "@/lib/auth-timeout";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const DESKTOP_AUTH_BRIDGE_URL = "https://goodlifeai.vercel.app/auth/desktop";
 
 let staySignedIn = true;
 
@@ -50,7 +51,7 @@ export function setStaySignedIn(value: boolean) {
 
 export function authRedirectUrl() {
   const desktop = typeof window !== "undefined" && Boolean(window.goodlifeDesktop?.isDesktop);
-  return desktop ? "goodlife://auth-callback" : `${window.location.origin}/app`;
+  return desktop ? DESKTOP_AUTH_BRIDGE_URL : `${window.location.origin}/app`;
 }
 
 export function isVerified(session: Session | null) {
@@ -67,5 +68,6 @@ export async function acceptDesktopAuthCallback(callbackUrl: string) {
   if (!code) throw new Error(parsed.searchParams.get("error_description") ?? params.get("error_description") ?? "The sign-in link was incomplete.");
   const { data, error } = await withAuthTimeout(getSupabase().auth.exchangeCodeForSession(code));
   if (error) throw error;
+  if (!data.session) throw new Error("GoodLife.AI did not receive a completed sign-in session.");
   return data.session;
 }

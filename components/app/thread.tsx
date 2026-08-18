@@ -124,10 +124,33 @@ const GATE_COPY: Record<Exclude<ModelStatus, "ready">, { title: string; body: st
   },
 };
 
+const DESKTOP_GATE_COPY: Record<Exclude<ModelStatus, "ready">, { title: string; body: string; action: string | null }> = {
+  off: {
+    title: "Start the local SLM",
+    body: `The ${MODEL_LABEL} coach is included with the Windows app. It runs on this computer and does not need to download again.`,
+    action: "Start local SLM",
+  },
+  loading: {
+    title: "Starting the local SLM",
+    body: "The coach is loading from the model included with GoodLife.AI. Nothing is being downloaded from the internet.",
+    action: null,
+  },
+  error: {
+    title: "The local SLM didn't start",
+    body: "The bundled model could not start on this computer. Nothing was sent anywhere, so you can safely try again.",
+    action: "Try again",
+  },
+  unsupported: {
+    title: "This computer can't run the coach",
+    body: "Conversation needs WebGPU, and it is not available on this computer. Your actions and history still work here.",
+    action: null,
+  },
+};
+
 /** The chat is gated on the model. There is no fixed-guidance chat behind it,
  *  so this replaces the composer rather than sitting next to it. */
-export function ModelGate({ status, progress, onStart }: { status: Exclude<ModelStatus, "ready">; progress: number; onStart: () => void }) {
-  const copy = GATE_COPY[status];
+export function ModelGate({ status, progress, onStart, desktop = false }: { status: Exclude<ModelStatus, "ready">; progress: number; onStart: () => void; desktop?: boolean }) {
+  const copy = (desktop ? DESKTOP_GATE_COPY : GATE_COPY)[status];
   return (
     <div className="composer-wrap">
       <div className="model-gate">
@@ -139,10 +162,10 @@ export function ModelGate({ status, progress, onStart }: { status: Exclude<Model
         {copy.action && (
           <button type="button" className="btn btn-primary" onClick={onStart}>{copy.action}</button>
         )}
-        {status === "loading" && <span className="model-gate-pct">{Math.round(progress * 100)}%</span>}
+        {status === "loading" && <span className="model-gate-pct">{desktop ? `Starting, ${Math.round(progress * 100)}%` : `${Math.round(progress * 100)}%`}</span>}
       </div>
       <p className="composer-note">
-        If you need urgent help right now, don&apos;t wait for a download. Contact your local emergency number, or call or text 988 in Canada and the US.
+        If you need urgent help right now, don&apos;t wait for the coach to start. Contact your local emergency number, or call or text 988 in Canada and the US.
       </p>
     </div>
   );
