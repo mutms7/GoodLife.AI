@@ -10,7 +10,9 @@
 
 GoodLife.AI is **the only ethical AI coach**: the AI runs locally on your computer or phone. Only the account information you choose to sync is stored online, and conversations disappear after seven days.
 
-The app turns a few honest answers into three small steps for today and a simple habit tracker. It is a reflection and education tool, not medical, legal, mental-health, or financial advice.
+GoodLife.AI grew out of notes from *The Defining Decade*, *Atomic Habits*, and *The Wealthy Barber*. It turns a few honest answers into three steps for today, then tracks whether you did them.
+
+It is a reflection and education tool, not medical, legal, mental-health, or financial advice.
 
 ![GoodLife.AI home page](docs/images/goodlife-home.png)
 

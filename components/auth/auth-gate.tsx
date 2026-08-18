@@ -42,8 +42,8 @@ export function AuthGate({ children }: { children: (account: { user: User; signO
     return () => { active = false; data.subscription.unsubscribe(); dispose?.(); };
   }, [configured]);
 
-  if (loading) return <AuthShell><p className="auth-status">Opening your account…</p></AuthShell>;
-  if (!configured) return <AuthShell><h1>Accounts need one final connection</h1><p className="auth-copy">The app is ready for Supabase, but this build does not have its public project URL and anonymous key yet.</p></AuthShell>;
+  if (loading) return <AuthShell><p className="auth-status">Opening your account...</p></AuthShell>;
+  if (!configured) return <AuthShell><h1>Accounts are not connected in this build</h1><p className="auth-copy">Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before signing in.</p></AuthShell>;
   if (!isVerified(session)) return <AuthForm session={session} notice={authNotice} onClearNotice={() => setAuthNotice("")} />;
   if (recovering) return <ResetPassword onDone={() => setRecovering(false)} />;
   return <>{children({ user: session!.user, signOut: async () => {
@@ -121,7 +121,7 @@ function AuthForm({ session, notice, onClearNotice }: { session: Session | null;
       <label className="auth-field">Email<input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
       {mode !== "forgot" && <label className="auth-field">Password<input type="password" minLength={8} autoComplete={mode === "signup" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} /></label>}
       {mode !== "forgot" && <label className="auth-check"><input type="checkbox" checked={stay} onChange={(event) => setStay(event.target.checked)} /> Stay signed in</label>}
-      <button className="btn btn-primary auth-submit" type="button" disabled={busy || !email || (mode !== "forgot" && password.length < 8)} onClick={() => void submit()}>{busy ? "One moment…" : mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Log in"}</button>
+      <button className="btn btn-primary auth-submit" type="button" disabled={busy || !email || (mode !== "forgot" && password.length < 8)} onClick={() => void submit()}>{busy ? "One moment..." : mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Log in"}</button>
       {mode !== "forgot" && <><div className="auth-or"><span>or</span></div><button className="btn btn-secondary auth-google" type="button" disabled={busy} onClick={() => void google()}>Continue with Google</button></>}
       {(notice || message) && <p className="auth-message" role="status">{notice || message}</p>}
       {session && !session.user.email_confirmed_at && <button className="auth-link" type="button" onClick={() => void resend()}>Resend verification email</button>}
@@ -146,5 +146,5 @@ function ResetPassword({ onDone }: { onDone: () => void }) {
       setMessage(error instanceof Error ? error.message : "Your password could not be saved. Try again.");
     } finally { setBusy(false); }
   };
-  return <AuthShell><h1>Choose a new password</h1><p className="auth-copy">Use at least eight characters.</p><label className="auth-field">New password<input type="password" minLength={8} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><button type="button" className="btn btn-primary auth-submit" disabled={busy || password.length < 8} onClick={() => void update()}>{busy ? "Saving…" : "Save password"}</button>{message && <p className="auth-message" role="status">{message}</p>}</AuthShell>;
+  return <AuthShell><h1>Choose a new password</h1><p className="auth-copy">Use at least eight characters.</p><label className="auth-field">New password<input type="password" minLength={8} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><button type="button" className="btn btn-primary auth-submit" disabled={busy || password.length < 8} onClick={() => void update()}>{busy ? "Saving..." : "Save password"}</button>{message && <p className="auth-message" role="status">{message}</p>}</AuthShell>;
 }
