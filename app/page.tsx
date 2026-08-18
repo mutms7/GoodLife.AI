@@ -3,17 +3,17 @@ import { CoachDemo } from "@/components/coach-demo";
 import { Dandelion } from "@/components/marks";
 
 const STEPS = [
-  { title: "You describe a good day", body: "The ordinary kind, not the holiday version. Then you pick up to three things that matter right now and say where you're stuck." },
-  { title: "You get three small steps", body: "Ranked from your answers by plain, testable logic. No black box deciding whether you should build an emergency fund." },
-  { title: "You download the coach", body: "The AI runs locally on your computer or phone after a one-time download. Chat starts when the model is ready." },
+  { title: "Describe a good day", body: "Think of a normal day you would be glad to repeat. Then choose up to three things that matter and say what feels stuck." },
+  { title: "Get three small steps", body: "Your answers shape a short, practical plan. You decide what to keep and what to change." },
+  { title: "Start the local coach", body: "The AI runs on your computer or phone after a one-time download. Chat opens when it is ready." },
 ];
 
 const ROUTING = [
-  { label: "Habits", value: "The model answers, carrying the notes on cues, two-minute versions and never missing twice.", fixed: false },
-  { label: "Money", value: "The model answers, held to buffer-then-interest and general education. Never a specific investment or amount.", fixed: false },
-  { label: "Health", value: "The model answers, held to wake-time basics. It can't diagnose, and it can't tell you to take anything or name a dose. It points at a clinician.", fixed: false },
-  { label: "Heavier days", value: "The model answers, told not to diagnose or minimise. A pointer to real support is appended afterwards, not left to the model.", fixed: false },
-  { label: "Crisis", value: "The model routes here and then stops. The reply is fixed text it never writes. Recognising it needs the model, so the download screen carries the numbers too.", fixed: true },
+  { label: "Habits", value: "The model uses notes about cues, two-minute versions and getting back on track.", fixed: false },
+  { label: "Money", value: "It sticks to general education and a buffer before interest. It never picks an investment or amount.", fixed: false },
+  { label: "Health", value: "It can discuss routines, but cannot diagnose or suggest a medicine or dose. It points you to a clinician.", fixed: false },
+  { label: "Hard days", value: "It avoids diagnosing or brushing things off, then points to real support.", fixed: false },
+  { label: "Crisis", value: "The model routes here and stops. The response is fixed text, and the support numbers stay available before download.", fixed: true },
 ];
 
 export default function Site() {
@@ -34,9 +34,9 @@ export default function Site() {
 
       <section className="site-hero">
         <div className="site-hero-copy">
-          <span className="site-eyebrow">The only ethical AI coach. Runs locally.</span>
+          <span className="site-eyebrow">A private AI coach that runs locally.</span>
           <h1>A coach for the life you&apos;re actually living.</h1>
-          <p>You don&apos;t need another list of everything that&apos;s wrong. You need to know what to do first, and you need it small enough to do on a normal Tuesday. Answer a few honest questions and I&apos;ll give you three.</p>
+          <p>You do not need another list of what is wrong. Answer a few honest questions and get three small things to try on a normal Tuesday.</p>
           <div className="site-cta">
             <Link className="btn btn-primary" href="/app">Answer a few questions</Link>
             <span>Takes about four minutes</span>
@@ -51,7 +51,7 @@ export default function Site() {
       </section>
 
       <section className="site-band" id="how-it-works">
-        <h2>Three questions in, and you have something to do today. Then you decide about the coach.</h2>
+        <h2>Three questions, then one useful thing to do today.</h2>
         <div className="site-steps">
           {STEPS.map((step, index) => (
             <div className="site-step" key={step.title}>
@@ -67,7 +67,7 @@ export default function Site() {
         <div className="site-privacy-copy">
           <span className="site-eyebrow terracotta">Privacy, the boring literal kind</span>
           <h2>Your answers stay local by default.</h2>
-          <p>The AI runs locally on your computer or phone. Only the account information you choose to sync is stored online, and conversations disappear after seven days.</p>
+          <p>The AI runs on your computer or phone. Only the account details you choose are stored online, and conversations disappear after seven days.</p>
           <div className="site-chips">
             <span>Local storage only</span>
             <span>JSON export</span>

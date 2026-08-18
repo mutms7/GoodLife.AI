@@ -21,12 +21,12 @@ test("server-renders the chat-first marketing page", async () => {
   assert.match(html, /<title>GoodLife\.AI \| a coach for the life you&#x27;re actually living<\/title>/i);
   assert.match(html, /A coach for the life you(?:&#x27;|')re actually living/);
   assert.match(html, /See the shape of an answer/);
-  assert.match(html, /The only ethical AI coach/);
-  assert.match(html, /AI runs locally on your computer or phone/);
+  assert.match(html, /A private AI coach that runs locally/);
+  assert.match(html, /The AI runs on your computer or phone/);
   assert.match(html, /conversations disappear after seven days/);
   // The page has to say the download is required, not optional.
-  assert.match(html, /You download the coach/);
-  assert.match(html, /Chat starts when the model is ready/);
+  assert.match(html, /Start the local coach/);
+  assert.match(html, /Chat opens when it is ready/);
   assert.match(html, /manifest\.webmanifest/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton|codex-preview/i);
 });
@@ -53,6 +53,27 @@ test("the product source keeps the local-first pieces", async () => {
   assert.match(app, /streamReply/);
   assert.match(llm, /@mlc-ai\/web-llm/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+});
+
+test("the app source scales text and makes Your Year interactive", async () => {
+  const [app, screens, rail, globals] = await Promise.all([
+    readFile(new URL("../app/app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/app/screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/app/rail.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(app, /conversations=\{data\.conversations\}/);
+  assert.match(screens, /aria-pressed=\{cell\.key === selected\.key\}/);
+  assert.match(screens, /Year summary/);
+  assert.match(screens, /visibleKeys = useMemo/);
+  assert.match(screens, /visibleConversations/);
+  assert.match(screens, /key: string; year: number; baseLabel: string/);
+  assert.match(screens, /key=\{month\.key\}/);
+  assert.match(rail, /id: "year", label: "Year"/);
+  assert.match(globals, /--font-scale/);
+  assert.match(globals, /font-size: calc\(15px \* var\(--font-scale\)\)/);
+  assert.match(globals, /grid-template-columns: repeat\(7, minmax\(32px, 1fr\)\)/);
+  assert.match(globals, /min-height: 44px/);
 });
 
 test("the chat is gated on the model, with no fixed-guidance chat behind it", async () => {

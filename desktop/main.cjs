@@ -2,7 +2,7 @@
 const path = require("node:path");
 const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 
 // Keep Chromium's GPU path available for WebGPU. These flags are harmless on
@@ -34,6 +34,21 @@ ipcMain.on("auth-renderer-ready", (event) => {
     authRenderer.send("auth-callback", pendingAuthCallback);
     pendingAuthCallback = undefined;
   }
+});
+
+function sendFullscreenState(window) {
+  if (!window || window.isDestroyed()) return;
+  window.webContents.send("fullscreen-changed", window.isFullScreen());
+}
+
+ipcMain.handle("fullscreen-state", (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  return Boolean(window?.isFullScreen());
+});
+ipcMain.on("fullscreen-toggle", (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (!window) return;
+  window.setFullScreen(!window.isFullScreen());
 });
 
 async function startRenderer() {
@@ -84,6 +99,9 @@ async function createWindow() {
     minHeight: 700,
     show: false,
     backgroundColor: "#f6f3ed",
+    autoHideMenuBar: true,
+    titleBarStyle: "hidden",
+    titleBarOverlay: { color: "#f5ead8", symbolColor: "#201e1d", height: 34 },
     webPreferences: {
       preload: path.join(app.getAppPath(), "desktop/preload.cjs"),
       contextIsolation: true,
@@ -91,6 +109,15 @@ async function createWindow() {
       sandbox: true,
       webSecurity: true,
     },
+  });
+  window.setMenuBarVisibility(false);
+  window.on("enter-full-screen", () => sendFullscreenState(window));
+  window.on("leave-full-screen", () => sendFullscreenState(window));
+  window.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && input.key === "F11") {
+      event.preventDefault();
+      window.setFullScreen(!window.isFullScreen());
+    }
   });
   window.once("ready-to-show", () => window.show());
   window.webContents.on("did-start-loading", () => {
@@ -126,6 +153,7 @@ if (!hasSingleInstance) {
     }
   });
   app.whenReady().then(async () => {
+    Menu.setApplicationMenu(null);
     if (process.argv.includes("--smoke-test")) {
       const origin = await startRenderer();
       for (const target of ["/app", "/model/resolve/main/mlc-chat-config.json", "/model/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm"]) {
