@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+import { withAuthTimeout } from "@/lib/auth-timeout";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -58,8 +59,13 @@ export function isVerified(session: Session | null) {
 
 export async function acceptDesktopAuthCallback(callbackUrl: string) {
   const parsed = new URL(callbackUrl);
+  if (parsed.protocol !== "goodlife:" || parsed.hostname !== "auth-callback") {
+    throw new Error("GoodLife.AI received an invalid sign-in response.");
+  }
   const params = new URLSearchParams(parsed.hash.slice(1));
   const code = parsed.searchParams.get("code");
   if (!code) throw new Error(parsed.searchParams.get("error_description") ?? params.get("error_description") ?? "The sign-in link was incomplete.");
-  return getSupabase().auth.exchangeCodeForSession(code);
+  const { data, error } = await withAuthTimeout(getSupabase().auth.exchangeCodeForSession(code));
+  if (error) throw error;
+  return data.session;
 }

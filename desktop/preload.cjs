@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("goodlifeDesktop", Object.freeze({
   onAuthCallback(handler) {
     const listener = (_event, url) => handler(url);
     ipcRenderer.on("auth-callback", listener);
+    ipcRenderer.send("auth-renderer-ready");
     return () => ipcRenderer.removeListener("auth-callback", listener);
   },
 }));

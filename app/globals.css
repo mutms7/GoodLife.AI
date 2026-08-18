@@ -41,9 +41,9 @@
   --color-accent-2-800: #3d472b;
   --color-accent-2-900: #272e1b;
 
-  --font-heading: var(--font-caprasimo), Georgia, serif;
+  --font-heading: "Caprasimo", Georgia, serif;
   --font-heading-weight: 400;
-  --font-body: var(--font-figtree), system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, sans-serif;
 
   --space-1: 4.4px;
   --space-2: 8.8px;

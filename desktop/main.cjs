@@ -2,7 +2,7 @@
 const path = require("node:path");
 const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 
 // Keep Chromium's GPU path available for WebGPU. These flags are harmless on
@@ -14,6 +14,7 @@ app.commandLine.appendSwitch("enable-features", "Vulkan,UseSkiaRenderer");
 
 let localServer;
 let pendingAuthCallback;
+let authRenderer;
 
 function authCallbackFrom(argv) {
   return argv.find((value) => /^goodlife:\/\/auth-callback/i.test(value));
@@ -21,10 +22,19 @@ function authCallbackFrom(argv) {
 
 function deliverAuthCallback(url) {
   if (!url) return;
-  const [window] = BrowserWindow.getAllWindows();
-  if (window?.webContents) window.webContents.send("auth-callback", url);
+  if (authRenderer && !authRenderer.isDestroyed()) authRenderer.send("auth-callback", url);
   else pendingAuthCallback = url;
 }
+
+// The renderer announces readiness only after its callback listener exists.
+// This avoids losing a deep link during startup or React hydration.
+ipcMain.on("auth-renderer-ready", (event) => {
+  authRenderer = event.sender;
+  if (pendingAuthCallback) {
+    authRenderer.send("auth-callback", pendingAuthCallback);
+    pendingAuthCallback = undefined;
+  }
+});
 
 async function startRenderer() {
   if (localServer) return localServer.url;
@@ -32,7 +42,9 @@ async function startRenderer() {
   const { startDesktopServer } = await import(pathToFileURL(path.join(app.getAppPath(), "desktop/server.mjs")).href);
   const { portCandidates } = await import(pathToFileURL(path.join(app.getAppPath(), "desktop/ports.mjs")).href);
   const clientRoot = path.join(app.getAppPath(), "dist/client");
-  const modelRoot = path.join(process.resourcesPath, "model");
+  const modelRoot = app.isPackaged
+    ? path.join(process.resourcesPath, "model")
+    : path.join(app.getAppPath(), "desktop/model");
   const portFile = path.join(app.getPath("userData"), "local-server-port.txt");
   let savedPort;
   try { savedPort = fs.readFileSync(portFile, "utf8").trim(); } catch { /* first launch */ }
@@ -81,11 +93,11 @@ async function createWindow() {
     },
   });
   window.once("ready-to-show", () => window.show());
-  window.webContents.once("did-finish-load", () => {
-    if (pendingAuthCallback) {
-      window.webContents.send("auth-callback", pendingAuthCallback);
-      pendingAuthCallback = undefined;
-    }
+  window.webContents.on("did-start-loading", () => {
+    if (authRenderer === window.webContents) authRenderer = undefined;
+  });
+  window.webContents.on("render-process-gone", () => {
+    if (authRenderer === window.webContents) authRenderer = undefined;
   });
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\//i.test(url)) void shell.openExternal(url);

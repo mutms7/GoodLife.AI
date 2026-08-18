@@ -4,6 +4,7 @@ import path from "node:path";
 import { releaseVersion } from "../desktop/version.mjs";
 import { safeFile } from "../desktop/server.mjs";
 import { DEFAULT_PORT, portCandidates } from "../desktop/ports.mjs";
+import { readFile } from "node:fs/promises";
 
 test("desktop release versions are valid semver and monotonic by run number", () => {
   assert.equal(releaseVersion(7), "1.0.7");
@@ -27,4 +28,16 @@ test("desktop server keeps a valid saved origin and has collision fallbacks", ()
   assert.deepEqual(portCandidates(DEFAULT_PORT), [DEFAULT_PORT, 47824, 47825, 47826, 47827, 47828, 47829, 47830, 47831, 47832, 47833]);
   assert.equal(portCandidates(49152)[0], 49152);
   assert.equal(portCandidates("not-a-port")[0], DEFAULT_PORT);
+});
+
+test("desktop auth callbacks wait for the renderer and fonts have a web-safe MIME type", async () => {
+  const [main, preload, server] = await Promise.all([
+    readFile(new URL("../desktop/main.cjs", import.meta.url), "utf8"),
+    readFile(new URL("../desktop/preload.cjs", import.meta.url), "utf8"),
+    readFile(new URL("../desktop/server.mjs", import.meta.url), "utf8"),
+  ]);
+  assert.match(main, /ipcMain\.on\("auth-renderer-ready"/);
+  assert.match(main, /app\.isPackaged[\s\S]*desktop\/model/);
+  assert.match(preload, /ipcRenderer\.send\("auth-renderer-ready"\)/);
+  assert.match(server, /"\.woff2": "font\/woff2"/);
 });

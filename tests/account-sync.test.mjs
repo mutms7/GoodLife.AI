@@ -13,6 +13,19 @@ test("account access is verified and forced before the product mounts", async ()
   assert.match(gate, /signInWithPassword/);
   assert.match(gate, /signInWithOAuth/);
   assert.match(gate, /Stay signed in/);
+  assert.match(gate, /withAuthTimeout/);
+  assert.match(gate, /Sign-in did not finish/);
+});
+
+test("web and desktop builds use the same bundled fonts", async () => {
+  const [layout, styles] = await Promise.all([
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(layout, /@fontsource\/caprasimo\/latin-400\.css/);
+  assert.match(layout, /@fontsource\/figtree\/latin-700\.css/);
+  assert.match(styles, /--font-heading: "Caprasimo"/);
+  assert.match(styles, /--font-body: "Figtree"/);
 });
 
 test("cloud sync excludes the local model and limits conversations to seven days", async () => {

@@ -17,6 +17,8 @@ const MIME = {
   ".txt": "text/plain; charset=utf-8",
   ".wasm": "application/wasm",
   ".webmanifest": "application/manifest+json; charset=utf-8",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
 };
 
 export function safeFile(root, pathname) {

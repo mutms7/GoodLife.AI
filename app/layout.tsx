@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Caprasimo, Figtree } from "next/font/google";
+import "@fontsource/caprasimo/latin-400.css";
+import "@fontsource/figtree/latin-400.css";
+import "@fontsource/figtree/latin-600.css";
+import "@fontsource/figtree/latin-700.css";
 import "./globals.css";
-
-// Self-hosted so the installed shell still draws its own type offline.
-const caprasimo = Caprasimo({ variable: "--font-caprasimo", subsets: ["latin"], weight: "400", display: "swap" });
-const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
 const TITLE = "GoodLife.AI | a coach for the life you're actually living";
 const DESCRIPTION = "The only ethical AI coach. Runs locally on your computer or phone, with optional account sync and seven-day conversation deletion.";
@@ -38,8 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    // The variables go on <html> so :root can compose --font-heading from them.
-    <html lang="en" className={`${caprasimo.variable} ${figtree.variable}`}>
+    <html lang="en">
       <body>{children}</body>
     </html>
   );
