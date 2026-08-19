@@ -70,3 +70,22 @@ test("desktop starts its bundled model without browser download copy", async () 
   assert.match(thread, /Nothing is being downloaded from the internet/);
   assert.match(screens, /included with the Windows app/);
 });
+
+test("desktop fullscreen state comes from the transition, not a stale window read", async () => {
+  const main = await readFile(new URL("../desktop/main.cjs", import.meta.url), "utf8");
+  // Windows emits enter-full-screen before isFullScreen() flips, so reading the
+  // window inside the handler reports the state it just left and the button ends
+  // up inverted from the first press onward.
+  for (const wiring of [
+    'window.on("enter-full-screen", () => sendFullscreenState(window, true));',
+    'window.on("leave-full-screen", () => sendFullscreenState(window, false));',
+    "window.webContents.send(\"fullscreen-changed\", fullscreen);",
+    "window.setFullScreen(!isFullscreen(window));",
+  ]) assert.ok(main.includes(wiring), `desktop/main.cjs is missing: ${wiring}`);
+  for (const stale of [
+    "sendFullscreenState(window));",
+    'send("fullscreen-changed", window.isFullScreen())',
+    "setFullScreen(!window.isFullScreen())",
+    "Boolean(window?.isFullScreen())",
+  ]) assert.ok(!main.includes(stale), `desktop/main.cjs reads fullscreen mid-transition: ${stale}`);
+});

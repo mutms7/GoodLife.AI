@@ -36,19 +36,33 @@ ipcMain.on("auth-renderer-ready", (event) => {
   }
 });
 
-function sendFullscreenState(window) {
-  if (!window || window.isDestroyed()) return;
-  window.webContents.send("fullscreen-changed", window.isFullScreen());
+// Windows emits enter-full-screen before isFullScreen() flips, so asking the
+// window inside a transition handler answers with the state it just left. That
+// inverted the button from the first press onward. The events already say which
+// way the window went, so they are what we trust; the remembered value also
+// keeps a fast second press from toggling against a reading that has not caught
+// up yet.
+const fullscreenByWindow = new WeakMap();
+
+function isFullscreen(window) {
+  return fullscreenByWindow.get(window) ?? window.isFullScreen();
+}
+
+function sendFullscreenState(window, fullscreen) {
+  if (!window) return;
+  fullscreenByWindow.set(window, fullscreen);
+  if (window.isDestroyed()) return;
+  window.webContents.send("fullscreen-changed", fullscreen);
 }
 
 ipcMain.handle("fullscreen-state", (event) => {
   const window = BrowserWindow.fromWebContents(event.sender);
-  return Boolean(window?.isFullScreen());
+  return window ? isFullscreen(window) : false;
 });
 ipcMain.on("fullscreen-toggle", (event) => {
   const window = BrowserWindow.fromWebContents(event.sender);
   if (!window) return;
-  window.setFullScreen(!window.isFullScreen());
+  window.setFullScreen(!isFullscreen(window));
 });
 
 async function startRenderer() {
@@ -111,12 +125,12 @@ async function createWindow() {
     },
   });
   window.setMenuBarVisibility(false);
-  window.on("enter-full-screen", () => sendFullscreenState(window));
-  window.on("leave-full-screen", () => sendFullscreenState(window));
+  window.on("enter-full-screen", () => sendFullscreenState(window, true));
+  window.on("leave-full-screen", () => sendFullscreenState(window, false));
   window.webContents.on("before-input-event", (event, input) => {
     if (input.type === "keyDown" && input.key === "F11") {
       event.preventDefault();
-      window.setFullScreen(!window.isFullScreen());
+      window.setFullScreen(!isFullscreen(window));
     }
   });
   window.once("ready-to-show", () => window.show());
