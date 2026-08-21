@@ -52,6 +52,16 @@ npm run build
 npm start
 ~~~
 
+## Share cards
+
+The link previews are static PNGs in `public/`, rendered from the card markup in [`scripts/og-cards.mjs`](scripts/og-cards.mjs). Regenerate them after a copy change or a colour-token change:
+
+~~~bash
+npm run og:render
+~~~
+
+That drives whatever Chromium is already installed, at 2x; set `CHROME_PATH` to pick a specific binary. Ship a replacement under a new `.vN` filename rather than overwriting a card, because Twitter, Slack, iMessage, and LinkedIn all cache these for days.
+
 ## Windows release
 
 The Windows installer bundles the local model. To build it locally (the model is roughly 1.6 GB):

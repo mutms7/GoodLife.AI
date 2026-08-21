@@ -113,3 +113,31 @@ test("the topic comes from the model reading the playbook, not from keywords", a
   assert.doesNotMatch(app, /matchSafetyNet|safetyNetTopic/);
   assert.match(app, /topic\.fixedReply/);
 });
+
+test("the link preview points at the purpose-built share cards", async () => {
+  const html = await (await render()).text();
+  // The wide card comes first, because most platforms take the first og:image.
+  const images = [...html.matchAll(/property="og:image"\s+content="([^"]+)"/g)].map(([, url]) => url);
+  assert.deepEqual(images.map((url) => new URL(url).pathname), ["/og-1200x630.v2.png", "/og-600x600.v2.png"]);
+  for (const url of images) assert.match(url, /^https?:\/\//); // absolute, crawlers do not resolve relative
+  assert.match(html, /property="og:image:width"\s+content="1200"/);
+  assert.match(html, /property="og:image:height"\s+content="630"/);
+  assert.match(html, /property="og:image:alt"\s+content="goodlife\.ai/);
+  assert.match(html, /name="twitter:card"\s+content="summary_large_image"/);
+  assert.match(html, /name="twitter:image"\s+content="[^"]*\/og-1200x630\.v2\.png"/);
+  // Short og:title, because the card itself carries the headline.
+  assert.match(html, /property="og:title"\s+content="GoodLife\.AI"/);
+  assert.match(html, /property="og:description"\s+content="Answer a few honest questions/);
+  // The old hero-style card is gone, not just unreferenced.
+  assert.doesNotMatch(html, /\/og\.png/);
+});
+
+test("both share cards are committed at 2x", async () => {
+  // IHDR is always the first chunk, so the dimensions sit at a fixed offset.
+  for (const [name, width, height] of [["og-1200x630.v2.png", 2400, 1260], ["og-600x600.v2.png", 1200, 1200]]) {
+    const png = await readFile(new URL(`../public/${name}`, import.meta.url));
+    assert.equal(png.subarray(1, 4).toString("latin1"), "PNG");
+    assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [width, height], `${name} is not ${width}x${height}`);
+  }
+  await assert.rejects(readFile(new URL("../public/og.png", import.meta.url)), /ENOENT/);
+});
